@@ -78,9 +78,6 @@ done
 
 
 
-#cd neovim
-
-#find gly_custom -regex .*\.lua | xargs -I % ln -fs $PWD/neovim/% ~/.config/nvim/lua/%
 
 
 print_info "Configured neovim successfully!\n"
