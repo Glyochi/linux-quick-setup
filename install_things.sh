@@ -10,7 +10,7 @@ print_info "Configuring up neovim...\n"
 SOURCE_ROOT_DIR="${CURRENT_DIR}/neovim"
 TARGET_ROOT_DIR="${HOME}/.config/nvim"
 TARGET_LUA_DIR="${TARGET_ROOT_DIR}/lua"
-TARGET_CUSTOM_LUA_DIR="${TARGET_LUA_DIR}/gly_custom"
+TARGET_GLY_CUSTOM_DIR="${TARGET_LUA_DIR}/gly_custom"
 
 
 # Check if init.lua has already exists. If not then symbolic link it.
@@ -45,7 +45,7 @@ print_default "Creating directory...\n"
 cd "${SOURCE_ROOT_DIR}"
 mkdir -p "${TARGET_ROOT_DIR}"
 mkdir -p "${TARGET_LUA_DIR}"
-rm -fr "${TARGET_CUSTOM_LUA_DIR}"
+rm -fr "${TARGET_GLY_CUSTOM_DIR}"
 
 
 
