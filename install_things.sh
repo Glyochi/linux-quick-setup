@@ -34,6 +34,10 @@ fi
 
 ln -fs "${source_path}" "${target_path}"
 
+source_path="${SOURCE_ROOT_DIR}/.luarc.json"
+target_path="${TARGET_ROOT_DIR}/.luarc.json"	
+ln -fs "${source_path}" "${target_path}"
+
 
 
 # Set up base directory + nuke if already exists
