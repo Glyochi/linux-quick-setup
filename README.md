@@ -1,6 +1,9 @@
 ## Purpose
 This repo is for quickly setting up a new linux machine for development
 
+# Todo
+- add auto install neovim 0.10
+- add auto install a few language servers inside install_things (lua-ls, vim-ls/which requires npm)
 
 # Neovim
 Includes:
