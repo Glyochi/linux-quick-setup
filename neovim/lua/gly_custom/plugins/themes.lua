@@ -12,9 +12,14 @@ vim.api.nvim_create_autocmd("ColorScheme", {
 })
 
 return {
+        {
+            "ellisonleao/gruvbox.nvim",
+			lazy = false,
+			priority= 1000,
+        },
 		{
 			"EdenEast/nightfox.nvim",
-			lazy = true,
+			lazy = false,
 			priority= 1000,
 		},
 		{

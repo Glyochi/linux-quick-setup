@@ -57,9 +57,9 @@ else
 	fi
 	
 	print_default "Installing Neovim...\n"
-	move_response=$(sudo rm -r "/usr/local/nvim-linux64" && sudo mv -f "nvim-linux64" "/usr/local" || echo "False")
+	move_response=$(sudo rm -fr "/usr/local/nvim-linux64" && sudo mv -f "nvim-linux64" "/usr/local" || echo "False")
 	if [[ "$move_response" == "False" ]]; then
-		print_error "Fail to move 'nvim-linux64.tar.gz' to '/usr/local', try again with sudo perhaps?\n"
+		print_error "Fail to move 'nvim-linux64.tar.gz' to '/usr/local'\n"
 		exit
 	fi
 
