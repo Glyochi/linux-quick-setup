@@ -44,6 +44,17 @@ return {
 			-- require('lspconfig').gleam.setup({})
 			-- require('lspconfig').rust_analyzer.setup({})
 			-- require('lspconfig').lua_ls.setup({})
+            require('lspconfig').pyright.setup({
+                settings = {
+                    python = {
+                        analysis = {
+                            extraPaths = {
+                                '/home/gly/projects/tinygrad'
+                            }
+                        }
+                    }
+                }
+            })
 
 			local cmp = require('cmp')
 
