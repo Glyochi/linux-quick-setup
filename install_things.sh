@@ -9,16 +9,17 @@ mkdir -p "${TMP_DIR}"
 
 ### Setup neovim
 print_info "Checking if neovim is installed...\n"
+TARGET_NEOVIM_VERSION="v0.11.1"
 neovim_response="$(nvim --version || echo 'False')" 
 if [[ "$neovim_response" != "False" ]]; then
     read_string_lines_into_array "$neovim_response"
     neovim_response_array=("${RETURN_0[@]}")
     neovim_version="${neovim_response_array[0]#'NVIM '}" 
 
-    if [[ "$neovim_version" == "v0.10.3" ]]; then
+    if [[ "$neovim_version" == "$TARGET_NEOVIM_VERSION" ]]; then
         print_info "Neovim is already installed with version $neovim_version!\n"
     else
-        prompt_message="Neovim is already installed with version $neovim_version. The prefered version is v0.10.3. Do you wish to continue using your version?\n" 
+        prompt_message="Neovim is already installed with version $neovim_version. The prefered version is $TARGET_NEOVIM_VERSION. Do you wish to continue with your neovim version?\n" 
         print_warning "$prompt_message"
         tmp_array=("No" "Yes")
 
@@ -32,17 +33,19 @@ if [[ "$neovim_response" != "False" ]]; then
             exit
         fi
 
-        print_warning "Continuing with Neovim version $neovim_version...\n"
+        print_warning "Continuing with Neovim version $TARGET_NEOVIM_VERSION...\n"
     fi  
 
 else
 	cd "$TMP_DIR"
 
 	print_default "Downloading Neovim...\n"
-	if [[ ! -f "${TMP_DIR}/nvim-linux64.tar.gz" ]]; then
-		download_response=$(wget "https://github.com/neovim/neovim/releases/download/v0.10.3/nvim-linux64.tar.gz" || echo "False")
+	if [[ ! -f "${TMP_DIR}/nvim-linux-x86_64.tar.gz" ]]; then
+        download_url="https://github.com/neovim/neovim/releases/download/$TARGET_NEOVIM_VERSION/nvim-linux-x86_64.tar.gz"
+        print_info "Downloading neovim from url '$download_url'\n"
+		download_response=$(wget "$download_url" || echo "False")
 		if [[ "$download_response" == "False" ]]; then
-			print_error "Fail to download 'nvim-linux64.tar.gz', try again perhaps?\n"
+			print_error "Fail to download 'nvim-linux-x86_64.tar.gz', try again perhaps?\n"
 			exit
 		fi
 	else
@@ -50,26 +53,26 @@ else
 	fi
 
 	print_default "Extracting Neovim...\n"
-	extract_response=$(tar xzvf nvim-linux64.tar.gz || echo "False")
+	extract_response=$(tar xzvf nvim-linux-x86_64.tar.gz || echo "False")
 	if [[ "$extract_response" == "False" ]]; then
-		print_error "Fail to extract 'nvim-linux64.tar.gz', try again perhaps?\n"
+		print_error "Fail to extract 'nvim-linux-x86_64.tar.gz', try again perhaps?\n"
 		exit
 	fi
 	
 	print_default "Installing Neovim...\n"
-	move_response=$(sudo rm -fr "/usr/local/nvim-linux64" && sudo mv -f "nvim-linux64" "/usr/local" || echo "False")
+	move_response=$(sudo rm -fr "/usr/local/nvim-linux-x86_64" && sudo mv -f "nvim-linux-x86_64" "/usr/local" || echo "False")
 	if [[ "$move_response" == "False" ]]; then
-		print_error "Fail to move 'nvim-linux64.tar.gz' to '/usr/local'\n"
+		print_error "Fail to move 'nvim-linux-x86_64.tar.gz' to '/usr/local'\n"
 		exit
 	fi
 
-	add_to_bashrc_response=$(sudo echo -e "\\n\\nexport PATH=\$PATH:/usr/local/nvim-linux64/bin\\nalias vim='nvim'" >> ~/.bashrc || echo "False")
+	add_to_bashrc_response=$(sudo echo -e "\\n\\nexport PATH=\$PATH:/usr/local/nvim-linux-x86_64/bin\\nalias vim='nvim'" >> ~/.bashrc || echo "False")
 	if [[ "$add_to_bashrc_response" == "False" ]]; then
 		print_error "Fail to add Neovim bin path to .bashrc, try again with sudo perhaps?\n"
 		exit
 	fi
 
-	print_info "Successfully installed Neovim v0.10.3\n"
+	print_info "Successfully installed Neovim $TARGET_NEOVIM_VERSION\n"
 	cd "$CURRENT_DIR" 
 fi
 
