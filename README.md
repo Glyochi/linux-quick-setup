@@ -15,6 +15,7 @@ Includes:
 - fugitive (for git)
 - lsp (language server provider, help with linking ls to vim)
 - mason (language server manager)
+- nvim-tree (For files structure)
 - some other custom plugins/remaps for gly
 
 Helpful commands
