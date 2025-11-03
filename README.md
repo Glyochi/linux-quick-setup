@@ -1,4 +1,4 @@
-## Purpose
+# Purpose
 This repo is for quickly setting up a new linux machine for development
 
 # Todo
@@ -23,3 +23,5 @@ Helpful commands
 - :LspInstall
 - :Mason
 
+# Selected lsp
+- python: basedpyright (for type checking) + none-ls (for formatting, have to install black + pyproject.toml)

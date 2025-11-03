@@ -16,6 +16,7 @@ return {
 			  require('cmp_nvim_lsp').default_capabilities()
 			)
 
+            
 			-- This is where you enable features that only work
 			-- if there is a language server active in the file
 			vim.api.nvim_create_autocmd('LspAttach', {
@@ -47,16 +48,41 @@ return {
 			-- require('lspconfig').gleam.setup({})
 			-- require('lspconfig').rust_analyzer.setup({})
 			-- require('lspconfig').lua_ls.setup({})
-            require('lspconfig').pyright.setup({
+            -- require('lspconfig').pyright.setup({
+            --     settings = {
+            --         python = {
+            --             analysis = {
+            --                 extraPaths = {
+            --                     '/home/gly/projects/tinygrad'
+            --                 }
+            --             }
+            --         }
+            --     }
+            -- })
+            require('lspconfig').basedpyright.setup({
                 settings = {
-                    python = {
-                        analysis = {
-                            extraPaths = {
-                                '/home/gly/projects/tinygrad'
-                            }
-                        }
-                    }
-                }
+                  basedpyright = {
+                    analysis = {
+                      typeCheckingMode = "basic", -- or "strict"
+                      inlayHints = {
+                        variableTypes = true,
+                        functionReturnTypes = true,
+                        callArgumentNames = "all", -- optional
+                      },
+                    },
+                  },
+                },
+            })
+
+      
+            -- Neovim 0.10+: turn on inlay hints
+            vim.api.nvim_create_autocmd("LspAttach", {
+              callback = function(args)
+                local client = vim.lsp.get_client_by_id(args.data.client_id)
+                if client and client.server_capabilities.inlayHintProvider then
+                  vim.lsp.inlay_hint.enable(true, { bufnr = args.buf })
+                end
+              end,
             })
 
 			local cmp = require('cmp')
