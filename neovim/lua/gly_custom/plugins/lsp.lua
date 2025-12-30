@@ -59,7 +59,7 @@ return {
             --         }
             --     }
             -- })
-            require('lspconfig').basedpyright.setup({
+            vim.lsp.config("basedpyright", {
                 settings = {
                   basedpyright = {
                     analysis = {
@@ -73,6 +73,8 @@ return {
                   },
                 },
             })
+            vim.lsp.enable({"basedpyright"})
+
 
       
             -- Neovim 0.10+: turn on inlay hints
