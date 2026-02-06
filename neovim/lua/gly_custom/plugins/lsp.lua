@@ -1,6 +1,9 @@
 return {
 	{'neovim/nvim-lspconfig'},
 	{'hrsh7th/cmp-nvim-lsp'},
+    dependencies = {
+      "stevearc/conform.nvim",
+    },
 	{
 		'hrsh7th/nvim-cmp', 
 		config = function()
@@ -35,7 +38,8 @@ return {
 			    vim.keymap.set('n', '<leader>en', '<cmd>lua vim.diagnostic.goto_next()<cr>', opts)
 			    vim.keymap.set('n', '<leader>ep', '<cmd>lua vim.diagnostic.goto_prev()<cr>', opts)
 			    vim.keymap.set('n', '<F2>', '<cmd>lua vim.lsp.buf.rename()<cr>', opts)
-			    vim.keymap.set({'n', 'x'}, 'ff', '<cmd>lua vim.lsp.buf.format({async = true})<cr>', opts)
+                -- TODO: Need a cleaner way to do this. This is just stacking two commands and hoping it works lol
+			    vim.keymap.set({'n', 'x'}, 'ff', '<cmd>lua vim.lsp.buf.format({async = true}) require("conform").format()<cr>', opts) 
 			    vim.keymap.set('n', '<leader>hh', '<cmd>lua vim.lsp.buf.code_action()<cr>', opts)
 			  end,
 			})

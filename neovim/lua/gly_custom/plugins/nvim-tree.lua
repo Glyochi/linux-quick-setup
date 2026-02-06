@@ -32,6 +32,7 @@ return {
       },
       view = {
         width = 30,
+        adaptive_size = true,
       },
       renderer = {
         group_empty = true,
