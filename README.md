@@ -25,3 +25,10 @@ Helpful commands
 
 # Selected lsp
 - python: basedpyright (for type checking) + none-ls (for formatting, have to install black + pyproject.toml)
+
+# Other dependencies 
+- black (formating)
+- opencode
+    - for debugging `pgrep -af 'opencode.*--port`
+    - for cleaning `pgrep -f 'opencode.*--port' | xargs -r kill -9`
+

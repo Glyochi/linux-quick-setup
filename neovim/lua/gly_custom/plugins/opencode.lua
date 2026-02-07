@@ -7,14 +7,15 @@ return {
     { "folke/snacks.nvim", opts = { input = {}, picker = {}, terminal = {} } },
   },
   config = function()
+    local startup_dir = vim.fn.getcwd() -- Store nvim startup directory
+
     ---@type opencode.Opts
     vim.g.opencode_opts = {
       -- Your configuration, if any — see `lua/opencode/config.lua`, or "goto definition" on the type or field.
       provider = {
         enabled = "terminal",
-        cmd = "opencode . --agent plan --port",
+        cmd = string.format('opencode "%s" --agent plan --port', startup_dir),
       },
-      port = 38888, 
     }
 
     -- Required for `opts.events.reload`.
