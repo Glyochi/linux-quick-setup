@@ -26,7 +26,10 @@ return {
       { desc = "Ask opencode…" })
     vim.keymap.set({ "n", "x" }, "<leader>kx", function() require("opencode").select() end,
       { desc = "Execute opencode action…" })
-    vim.keymap.set({ "n", "t" }, "<leader>kk", function() require("opencode").toggle() end, { desc = "Toggle opencode" })
+    vim.keymap.set({ "n", "t" }, "<leader>kk", function() 
+      require("opencode").toggle() 
+      vim.cmd("wincmd =")
+    end, { desc = "Toggle opencode" })
     vim.keymap.set({ "n", "x" }, "<leader>kd", function() require("opencode").command("session.interrupt") end,
       { desc = "Interupt opencode request" })
 
