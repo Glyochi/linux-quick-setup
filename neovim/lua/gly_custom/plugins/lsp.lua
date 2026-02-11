@@ -1,47 +1,51 @@
 return {
-	{'neovim/nvim-lspconfig'},
-	{'hrsh7th/cmp-nvim-lsp'},
-    dependencies = {
-      "stevearc/conform.nvim",
-    },
+	{ "neovim/nvim-lspconfig" },
+	{ "hrsh7th/cmp-nvim-lsp" },
+	dependencies = {
+		"stevearc/conform.nvim",
+	},
 	{
-		'hrsh7th/nvim-cmp', 
+		"hrsh7th/nvim-cmp",
 		config = function()
 			-- Reserve a space in the gutter
-			vim.opt.signcolumn = 'yes'
+			vim.opt.signcolumn = "yes"
 
 			-- Add cmp_nvim_lsp capabilities settings to lspconfig
 			-- This should be executed before you configure any language server
-			local lspconfig_defaults = require('lspconfig').util.default_config
+			local lspconfig_defaults = require("lspconfig").util.default_config
 			lspconfig_defaults.capabilities = vim.tbl_deep_extend(
-			  'force',
-			  lspconfig_defaults.capabilities,
-			  require('cmp_nvim_lsp').default_capabilities()
+				"force",
+				lspconfig_defaults.capabilities,
+				require("cmp_nvim_lsp").default_capabilities()
 			)
 
-            
 			-- This is where you enable features that only work
 			-- if there is a language server active in the file
-			vim.api.nvim_create_autocmd('LspAttach', {
-			  desc = 'LSP actions',
-			  callback = function(event)
-			    local opts = {buffer = event.buf}
+			vim.api.nvim_create_autocmd("LspAttach", {
+				desc = "LSP actions",
+				callback = function(event)
+					local opts = { buffer = event.buf }
 
-			    vim.keymap.set('n', 'K', '<cmd>lua vim.lsp.buf.hover()<cr>', opts)
-			    vim.keymap.set('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<cr>', opts)
-			    vim.keymap.set('n', 'gD', '<cmd>lua vim.lsp.buf.declaration()<cr>', opts)
-			    vim.keymap.set('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<cr>', opts)
-			    vim.keymap.set('n', 'go', '<cmd>lua vim.lsp.buf.type_definition()<cr>', opts)
-			    vim.keymap.set('n', 'gr', '<cmd>lua vim.lsp.buf.references()<cr>', opts)
-			    vim.keymap.set('n', 'gs', '<cmd>lua vim.lsp.buf.signature_help()<cr>', opts)
-			    vim.keymap.set('n', '<leader>eh', '<cmd>lua vim.diagnostic.open_float()<cr>', opts)
-			    vim.keymap.set('n', '<leader>en', '<cmd>lua vim.diagnostic.goto_next()<cr>', opts)
-			    vim.keymap.set('n', '<leader>ep', '<cmd>lua vim.diagnostic.goto_prev()<cr>', opts)
-			    vim.keymap.set('n', '<F2>', '<cmd>lua vim.lsp.buf.rename()<cr>', opts)
-                -- TODO: Need a cleaner way to do this. This is just stacking two commands and hoping it works lol
-			    vim.keymap.set({'n', 'x'}, 'ff', '<cmd>lua vim.lsp.buf.format({async = true}) require("conform").format()<cr>', opts) 
-			    vim.keymap.set('n', '<leader>hh', '<cmd>lua vim.lsp.buf.code_action()<cr>', opts)
-			  end,
+					vim.keymap.set("n", "K", "<cmd>lua vim.lsp.buf.hover()<cr>", opts)
+					vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<cr>", opts)
+					vim.keymap.set("n", "gD", "<cmd>lua vim.lsp.buf.declaration()<cr>", opts)
+					vim.keymap.set("n", "gi", "<cmd>lua vim.lsp.buf.implementation()<cr>", opts)
+					vim.keymap.set("n", "go", "<cmd>lua vim.lsp.buf.type_definition()<cr>", opts)
+					vim.keymap.set("n", "gr", "<cmd>lua vim.lsp.buf.references()<cr>", opts)
+					vim.keymap.set("n", "gs", "<cmd>lua vim.lsp.buf.signature_help()<cr>", opts)
+					vim.keymap.set("n", "<leader>eh", "<cmd>lua vim.diagnostic.open_float()<cr>", opts)
+					vim.keymap.set("n", "<leader>en", "<cmd>lua vim.diagnostic.goto_next()<cr>", opts)
+					vim.keymap.set("n", "<leader>ep", "<cmd>lua vim.diagnostic.goto_prev()<cr>", opts)
+					vim.keymap.set("n", "<F2>", "<cmd>lua vim.lsp.buf.rename()<cr>", opts)
+					-- TODO: Need a cleaner way to do this. This is just stacking two commands and hoping it works lol
+					vim.keymap.set(
+						{ "n", "x" },
+						"ff",
+						'<cmd>lua vim.lsp.buf.format({async = true}) require("conform").format()<cr>',
+						opts
+					)
+					vim.keymap.set("n", "<leader>hh", "<cmd>lua vim.lsp.buf.code_action()<cr>", opts)
+				end,
 			})
 
 			-- These are just examples. Replace them with the language
@@ -52,50 +56,48 @@ return {
 			-- require('lspconfig').gleam.setup({})
 			-- require('lspconfig').rust_analyzer.setup({})
 			-- require('lspconfig').lua_ls.setup({})
-            -- require('lspconfig').pyright.setup({
-            --     settings = {
-            --         python = {
-            --             analysis = {
-            --                 extraPaths = {
-            --                     '/home/gly/projects/tinygrad'
-            --                 }
-            --             }
-            --         }
-            --     }
-            -- })
-            vim.lsp.config("basedpyright", {
-                settings = {
-                  basedpyright = {
-                    analysis = {
-                      typeCheckingMode = "basic", -- or "strict"
-                      inlayHints = {
-                        variableTypes = true,
-                        functionReturnTypes = true,
-                        callArgumentNames = "all", -- optional
-                      },
-                    },
-                  },
-                },
-            })
-            vim.lsp.enable({"basedpyright"})
+			-- require('lspconfig').pyright.setup({
+			--     settings = {
+			--         python = {
+			--             analysis = {
+			--                 extraPaths = {
+			--                     '/home/gly/projects/tinygrad'
+			--                 }
+			--             }
+			--         }
+			--     }
+			-- })
+			vim.lsp.config("basedpyright", {
+				settings = {
+					basedpyright = {
+						analysis = {
+							typeCheckingMode = "basic", -- or "strict"
+							inlayHints = {
+								variableTypes = true,
+								functionReturnTypes = true,
+								callArgumentNames = "all", -- optional
+							},
+						},
+					},
+				},
+			})
+			vim.lsp.enable({ "basedpyright" })
 
+			-- Neovim 0.10+: turn on inlay hints
+			vim.api.nvim_create_autocmd("LspAttach", {
+				callback = function(args)
+					local client = vim.lsp.get_client_by_id(args.data.client_id)
+					if client and client.server_capabilities.inlayHintProvider then
+						vim.lsp.inlay_hint.enable(true, { bufnr = args.buf })
+					end
+				end,
+			})
 
-      
-            -- Neovim 0.10+: turn on inlay hints
-            vim.api.nvim_create_autocmd("LspAttach", {
-              callback = function(args)
-                local client = vim.lsp.get_client_by_id(args.data.client_id)
-                if client and client.server_capabilities.inlayHintProvider then
-                  vim.lsp.inlay_hint.enable(true, { bufnr = args.buf })
-                end
-              end,
-            })
-
-			local cmp = require('cmp')
+			local cmp = require("cmp")
 
 			cmp.setup({
 				sources = {
-					{name = 'nvim_lsp'},
+					{ name = "nvim_lsp" },
 				},
 				snippet = {
 					expand = function(args)
@@ -104,16 +106,16 @@ return {
 					end,
 				},
 				mapping = cmp.mapping.preset.insert({
-					['<C-p>'] = cmp.mapping.select_prev_item({behavior = 'select'}),
-					['<C-n>'] = cmp.mapping.select_next_item({behavior = 'select'}),
+					["<C-p>"] = cmp.mapping.select_prev_item({ behavior = "select" }),
+					["<C-n>"] = cmp.mapping.select_next_item({ behavior = "select" }),
 
 					-- `Enter` key to confirm completion
-					['<CR>'] = cmp.mapping.confirm({select = true}),
+					["<CR>"] = cmp.mapping.confirm({ select = true }),
 
 					-- Ctrl+Space to trigger completion menu
-					['<C-Space>'] = cmp.mapping.complete(),
+					["<C-Space>"] = cmp.mapping.complete(),
 				}),
 			})
-		end
+		end,
 	},
 }
