@@ -60,13 +60,13 @@ else
 	fi
 	
 	print_default "Installing Neovim...\n"
-	move_response=$(sudo rm -fr "/usr/local/nvim-linux-x86_64" && sudo mv -f "nvim-linux-x86_64" "/usr/local" || echo "False")
+	move_response=$(rm -fr "/usr/local/nvim-linux-x86_64" && mv -f "nvim-linux-x86_64" "/usr/local" || echo "False")
 	if [[ "$move_response" == "False" ]]; then
 		print_error "Fail to move 'nvim-linux-x86_64.tar.gz' to '/usr/local'\n"
 		exit
 	fi
 
-	add_to_bashrc_response=$(sudo echo -e "\\n\\nexport PATH=\$PATH:/usr/local/nvim-linux-x86_64/bin\\nalias vim='nvim'" >> ~/.bashrc || echo "False")
+	add_to_bashrc_response=$(echo -e "\\n\\nexport PATH=\$PATH:/usr/local/nvim-linux-x86_64/bin\\nalias vim='nvim'" >> ~/.bashrc || echo "False")
 	if [[ "$add_to_bashrc_response" == "False" ]]; then
 		print_error "Fail to add Neovim bin path to .bashrc, try again with sudo perhaps?\n"
 		exit
