@@ -1,10 +1,11 @@
 return {
-  "NickvanDyke/opencode.nvim",
+  "nickjvandyke/opencode.nvim",
+  version = "v0.13.2", -- Latest stable release
   dependencies = {
-    -- Recommended for `ask()` and `select()`.
-    -- Required for `snacks` provider.
-    ---@module 'snacks' <- Loads `snacks.nvim` types for configuration intellisense.
-    { "folke/snacks.nvim", opts = { input = {}, picker = {}, terminal = {} } },
+    {
+      "folke/snacks.nvim",
+      opts = { input = {}, picker = {}, terminal = {} },
+    },
   },
   config = function()
     local startup_dir = vim.fn.getcwd() -- Store nvim startup directory
@@ -26,12 +27,19 @@ return {
       )
     end
 
+    local snacks_terminal_opts = {
+      win = {
+        position = "right",
+        enter = false,
+      },
+    }
+
     ---@type opencode.Opts
     vim.g.opencode_opts = {
-      -- Your configuration, if any — see `lua/opencode/config.lua`, or "goto definition" on the type or field.
-      provider = {
-        enabled = "terminal",
-        cmd = opencode_cmd,
+      server = {
+        start = function()
+          require("snacks.terminal").open(opencode_cmd, snacks_terminal_opts)
+        end,
       },
     }
 
@@ -43,7 +51,7 @@ return {
       require("opencode").select()
     end, { desc = "Execute opencode action…" })
     vim.keymap.set({ "n", "t" }, "<leader>kk", function()
-      require("opencode").toggle()
+      require("snacks.terminal").toggle(opencode_cmd, snacks_terminal_opts)
       vim.cmd("wincmd =")
     end, { desc = "Toggle opencode" })
 
