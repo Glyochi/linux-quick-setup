@@ -13,14 +13,14 @@ return {
     "folke/tokyonight.nvim",
     lazy = false,
     priority = 1000,
+    config = function()
+      vim.cmd("colorscheme tokyonight-night")
   },
   {
     "everviolet/nvim",
     name = "evergarden",
     lazy = false,
     priority = 1000, -- Colorscheme plugin is loaded first before any other plugins
-    config = function()
-      vim.cmd("colorscheme evergarden-winter")
     end,
     opts = {
       theme = {
