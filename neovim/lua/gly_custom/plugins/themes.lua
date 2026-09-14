@@ -15,13 +15,13 @@ return {
     priority = 1000,
     config = function()
       vim.cmd("colorscheme tokyonight-night")
+    end,
   },
   {
     "everviolet/nvim",
     name = "evergarden",
     lazy = false,
     priority = 1000, -- Colorscheme plugin is loaded first before any other plugins
-    end,
     opts = {
       theme = {
         variant = "fall", -- 'winter'|'fall'|'spring'|'summer'
