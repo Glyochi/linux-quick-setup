@@ -26,6 +26,20 @@ Helpful commands
 # Selected lsp
 - python: basedpyright (for type checking) + none-ls (for formatting, have to install black + pyproject.toml)
 
+# Pi
+Pi is the AI coding agent, installed and configured by `install_pi.sh`.
+Personal Pi configuration (settings, skills, extensions, prompts, themes)
+lives in a separate repo so this bootstrap repo stays small.
+
+- Install / refresh: `bash install_pi.sh`
+- Teardown: `bash remove_pi.sh`
+- Config repo default path: `~/pi-config`
+- Fresh machine: `PI_CONFIG_REPO='git@github.com:<you>/pi-config.git' bash install_pi.sh`
+
+Skills in `~/pi-config/skills/` load in every project. Project-specific skills
+live under `~/pi-config/projects/<domain>/` and are declared in that project's
+`.pi/settings.json`.
+
 # Other dependencies 
 - black (formating)
 - opencode

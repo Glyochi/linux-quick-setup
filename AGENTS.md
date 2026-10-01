@@ -8,7 +8,10 @@
 ## Repository Map
 - `install_things.sh`: main installer flow (Neovim download/install + config linking).
 - `install_dependencies.sh`: installs external CLI dependencies (currently opencode CLI).
+- `install_pi.sh`: installs Pi, clones/updates the separate `pi-config` repo, links settings.
+- `remove_pi.sh`: teardown for Pi config and installs (leaves `pi-config` repo intact).
 - `remove_things.sh`: teardown for Neovim config/data.
+- `docs/plans/**`: implementation plans and progress logs.
 - `utils.sh`: shared Bash helpers (array/string/file helpers, logging, parsing).
 - `back_bone.sh`: terminal, color, menu, prompt, and print/log framework.
 - `neovim/init.lua`: Neovim entrypoint.
@@ -35,15 +38,17 @@
 - Use script execution as the build/run workflow:
   - Full setup: `bash install_things.sh`
   - Dependency setup only: `bash install_dependencies.sh`
+  - Pi setup only: `bash install_pi.sh`
   - Teardown: `bash remove_things.sh`
+  - Pi teardown: `bash remove_pi.sh`
 
 ### Lint / Static Checks
 - Bash syntax check (all top-level scripts):
-  - `bash -n back_bone.sh utils.sh install_things.sh install_dependencies.sh remove_things.sh`
+  - `bash -n back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh`
 - Bash syntax check (single script):
   - `bash -n utils.sh`
 - ShellCheck (all top-level scripts, when installed):
-  - `shellcheck back_bone.sh utils.sh install_things.sh install_dependencies.sh remove_things.sh`
+  - `shellcheck back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh`
 - ShellCheck (single script):
   - `shellcheck install_things.sh`
 - Lua parse smoke check (single file):
@@ -157,3 +162,17 @@
 - No CI pipeline is configured at the time of writing.
 - No standardized formatter config for Bash/Lua is present.
 - No dedicated automated test suite exists yet.
+
+<!-- BEGIN COMPOUND PI TOOL MAP -->
+## Compound Engineering (Pi compatibility)
+
+This block is added by the pi-compound-engineering package.
+
+Pi extensions used by skills shipped by this package:
+- Required for full functionality: `pi-subagents` (by nicobailon) provides the `subagent` tool used by ce-compound, ce-code-review, ce-plan, ce-compound-refresh, and other parallel-agent skills.
+- Recommended: `pi-ask-user` (by edlsh) provides the `ask_user` tool; skills fall back to numbered options in chat when it is missing.
+
+Install with:
+  pi install npm:pi-subagents
+  pi install npm:pi-ask-user
+<!-- END COMPOUND PI TOOL MAP -->
