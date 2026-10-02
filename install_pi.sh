@@ -31,32 +31,47 @@ fi
 # The token is stored once per machine in ~/.git-credentials. SSH remotes skip
 # this and rely on the machine's SSH key instead.
 if [[ "$PI_SYNC_REPO" == https://* ]]; then
-	git config --global credential.helper store
-	if ! printf 'protocol=https\nhost=github.com\n\n' | git credential fill >/dev/null 2>&1; then
-		if [[ ! -t 0 ]]; then
-			print_error "'${PI_SYNC_REPO}' is private and no GitHub credential is stored.\n"
-			print_error "Add a token to ~/.git-credentials (or set PI_SYNC_REPO to an SSH URL), then re-run.\n"
-			exit 1
-		fi
-		print_default "The config repo is private, so git needs a GitHub token.\n"
-		print_default "Create a classic token with the 'repo' scope: https://github.com/settings/tokens\n"
-		read -rsp "Paste GitHub token: " github_token
-		echo
-		if [[ -z "$github_token" ]]; then
-			print_error "No token provided; cannot access '${PI_SYNC_REPO}'.\n"
-			exit 1
-		fi
-		printf 'https://%s:%s@github.com\n' "$PI_GIT_USER" "$github_token" >> "$HOME/.git-credentials"
-		unset github_token
-		chmod 600 "$HOME/.git-credentials"
-		print_info "Stored GitHub credential in ~/.git-credentials.\n"
+	# Always ask for a fresh token. A previously stored or externally provided
+	# credential (gh, keyring, an old ~/.git-credentials entry) may be stale, so
+	# never skip the prompt based on what git currently reports.
+	if [[ ! -t 0 ]]; then
+		print_error "'${PI_SYNC_REPO}' needs a GitHub token but stdin is not a terminal.\n"
+		print_error "Set PI_SYNC_REPO to an SSH URL, or add the token to ~/.git-credentials yourself.\n"
+		exit 1
 	fi
+	print_default "The config repo is private, so git needs a GitHub token.\n"
+	print_default "Create a classic token with the 'repo' scope: https://github.com/settings/tokens\n"
+	read -rsp "Paste GitHub token: " github_token
+	echo
+	if [[ -z "$github_token" ]]; then
+		print_error "No token provided; cannot access '${PI_SYNC_REPO}'.\n"
+		exit 1
+	fi
+
+	# Force github.com to use only the credential store, so a stale gh/keyring
+	# helper cannot take precedence over the token just entered.
+	git config --global --remove-section credential.https://github.com 2>/dev/null || true
+	git config --global --replace-all credential.helper ""
+	git config --global --add credential.helper store
+	git config --global --add credential.https://github.com.helper ""
+	git config --global --add credential.https://github.com.helper store
+
+	# Replace any previous github.com credential with the new token.
+	credentials_file="$HOME/.git-credentials"
+	if [[ -f "$credentials_file" ]]; then
+		grep -v 'github.com' "$credentials_file" > "${credentials_file}.tmp" || true
+		mv "${credentials_file}.tmp" "$credentials_file"
+	fi
+	printf 'https://%s:%s@github.com\n' "$PI_GIT_USER" "$github_token" >> "$credentials_file"
+	unset github_token
+	chmod 600 "$credentials_file"
+	print_info "Stored the new GitHub credential in ~/.git-credentials.\n"
 fi
 
 ### Clone or update the pi agent config repository
 if [[ -d "${PI_AGENT_DIR}/.git" ]]; then
 	print_default "Updating pi config at '${PI_AGENT_DIR}'...\n"
-	if ! git -C "${PI_AGENT_DIR}" pull --ff-only; then
+	if ! GIT_TERMINAL_PROMPT=0 git -C "${PI_AGENT_DIR}" pull --ff-only; then
 		print_warning "Could not update pi config; continuing with the local checkout.\n"
 	fi
 elif [[ -e "${PI_AGENT_DIR}" ]]; then
@@ -66,15 +81,17 @@ elif [[ -e "${PI_AGENT_DIR}" ]]; then
 	print_warning "'${PI_AGENT_DIR}' already exists and is not a git repo; backing it up to '${backup_dir}'.\n"
 	mv "${PI_AGENT_DIR}" "${backup_dir}"
 	print_default "Cloning pi config from '${PI_SYNC_REPO}'...\n"
-	if ! git clone "${PI_SYNC_REPO}" "${PI_AGENT_DIR}"; then
+	if ! GIT_TERMINAL_PROMPT=0 git clone "${PI_SYNC_REPO}" "${PI_AGENT_DIR}"; then
 		print_error "Failed to clone pi config from '${PI_SYNC_REPO}'.\n"
+		print_error "Check that the GitHub token is valid and has the 'repo' scope.\n"
 		print_error "Your previous config is safe at '${backup_dir}'.\n"
 		exit 1
 	fi
 else
 	print_default "Cloning pi config from '${PI_SYNC_REPO}'...\n"
-	if ! git clone "${PI_SYNC_REPO}" "${PI_AGENT_DIR}"; then
+	if ! GIT_TERMINAL_PROMPT=0 git clone "${PI_SYNC_REPO}" "${PI_AGENT_DIR}"; then
 		print_error "Failed to clone pi config from '${PI_SYNC_REPO}'.\n"
+		print_error "Check that the GitHub token is valid and has the 'repo' scope.\n"
 		exit 1
 	fi
 fi
