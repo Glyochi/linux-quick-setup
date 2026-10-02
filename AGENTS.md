@@ -8,8 +8,8 @@
 ## Repository Map
 - `install_things.sh`: main installer flow (Neovim download/install + config linking).
 - `install_dependencies.sh`: installs external CLI dependencies (currently opencode CLI).
-- `install_pi.sh`: installs Pi, clones/updates the separate `pi-config` repo, links settings.
-- `remove_pi.sh`: teardown for Pi config and installs (leaves `pi-config` repo intact).
+- `install_pi.sh`: installs Pi, stores the GitHub token, clones/updates the pi-config-sync repo at `~/.pi/agent`, installs `npm:pi-config-sync`.
+- `remove_pi.sh`: teardown for Pi config and installs (the synced config remains on the remote).
 - `remove_things.sh`: teardown for Neovim config/data.
 - `docs/plans/**`: implementation plans and progress logs.
 - `utils.sh`: shared Bash helpers (array/string/file helpers, logging, parsing).
@@ -162,17 +162,3 @@
 - No CI pipeline is configured at the time of writing.
 - No standardized formatter config for Bash/Lua is present.
 - No dedicated automated test suite exists yet.
-
-<!-- BEGIN COMPOUND PI TOOL MAP -->
-## Compound Engineering (Pi compatibility)
-
-This block is added by the pi-compound-engineering package.
-
-Pi extensions used by skills shipped by this package:
-- Required for full functionality: `pi-subagents` (by nicobailon) provides the `subagent` tool used by ce-compound, ce-code-review, ce-plan, ce-compound-refresh, and other parallel-agent skills.
-- Recommended: `pi-ask-user` (by edlsh) provides the `ask_user` tool; skills fall back to numbered options in chat when it is missing.
-
-Install with:
-  pi install npm:pi-subagents
-  pi install npm:pi-ask-user
-<!-- END COMPOUND PI TOOL MAP -->

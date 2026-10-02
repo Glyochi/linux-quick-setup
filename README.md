@@ -28,17 +28,24 @@ Helpful commands
 
 # Pi
 Pi is the AI coding agent, installed and configured by `install_pi.sh`.
-Personal Pi configuration (settings, skills, extensions, prompts, themes)
-lives in a separate repo so this bootstrap repo stays small.
+Personal Pi configuration (settings, skills, extensions, prompts, themes) is
+synced across machines with the [`pi-config-sync`](https://www.npmjs.com/package/pi-config-sync)
+package, which keeps the Pi agent directory (`~/.pi/agent`) itself as a git
+repository.
 
 - Install / refresh: `bash install_pi.sh`
 - Teardown: `bash remove_pi.sh`
-- Config repo default path: `~/pi-config`
-- Fresh machine: `PI_CONFIG_REPO='git@github.com:<you>/pi-config.git' bash install_pi.sh`
+- Config repo: `https://github.com/Glyochi/pi-config-sync.git`
+- Agent directory (the repo checkout): `~/.pi/agent`
+- Fresh machine: `bash install_pi.sh` (prompts once for a GitHub token)
 
-Skills in `~/pi-config/skills/` load in every project. Project-specific skills
-live under `~/pi-config/projects/<domain>/` and are declared in that project's
-`.pi/settings.json`.
+On a new machine the script asks for a GitHub token with the `repo` scope,
+stores it in `~/.git-credentials`, clones the config repo into `~/.pi/agent`,
+and installs `npm:pi-config-sync`. After that, syncing is automatic (about
+every 5 minutes and on shutdown); use `/gitsync status`, `/gitsync sync`,
+`/gitsync pull`, or `/gitsync push` inside pi when you want to force it.
+
+Skills live in `~/.pi/agent/skills/` and load in every project.
 
 # Other dependencies 
 - black (formating)

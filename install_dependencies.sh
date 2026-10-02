@@ -6,7 +6,8 @@
 # Install opencode
 curl -fsSL https://opencode.ai/install | bash
 
-# Install pi (personal config lives in a separate repo; see install_pi.sh).
-# Set PI_CONFIG_REPO first on a fresh machine, e.g.
-#   PI_CONFIG_REPO='git@github.com:<you>/pi-config.git' bash install_pi.sh
+# Install pi (personal config is synced via the pi-config-sync package; see
+# install_pi.sh). On a fresh machine run:
+#   bash "$(dirname "$0")/install_pi.sh"
+# It prompts once for a GitHub token to reach the private config repo.
 # bash "$(dirname "$0")/install_pi.sh"
