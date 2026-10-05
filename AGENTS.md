@@ -8,9 +8,14 @@
 ## Repository Map
 - `install_things.sh`: main installer flow (Neovim download/install + config linking).
 - `install_dependencies.sh`: installs external CLI dependencies (currently opencode CLI).
-- `install_pi.sh`: installs Pi, stores the GitHub token, clones/updates the pi-config-sync repo at `~/.pi/agent`, installs `npm:pi-config-sync`.
+- `install_pi.sh`: installs Pi, clones/updates the pi-config-sync repo at `~/.pi/agent` (no credentials for a public repo, token for a private one), installs `npm:pi-config-sync`.
 - `remove_pi.sh`: teardown for Pi config and installs (the synced config remains on the remote).
 - `remove_things.sh`: teardown for Neovim config/data.
+- `Dockerfile` / `.dockerignore`: reusable image that ships the pinned Neovim + Pi environment.
+- `docker/entrypoint.sh`: container entrypoint; pull-only config fast-forward then exec.
+- `docker/pi-packages.json`: exact pinned Pi package versions baked into the image.
+- `docker-compose.yaml`: brings up the image with the code mounted at `/workspace` and Pi state in named volumes.
+- `.github/workflows/build-image.yml`: manual workflow that builds and publishes the image to GHCR.
 - `docs/plans/**`: implementation plans and progress logs.
 - `utils.sh`: shared Bash helpers (array/string/file helpers, logging, parsing).
 - `back_bone.sh`: terminal, color, menu, prompt, and print/log framework.
@@ -30,6 +35,7 @@
 - Shell target: Bash.
 - Main Neovim version target in installer: `v0.11.1`.
 - Scripts may depend on tools like `sudo`, `wget`, `tar`, `tree`, `tput`, and `curl`.
+- The Docker image targets glibc Debian-based images on `amd64` only (no Alpine/musl, no arm64); `debian:bookworm-slim` is the default and only built/verified variant, while `BASE_IMAGE` can re-base onto other glibc images (unverified).
 
 ## Build, Lint, and Test Commands
 
@@ -41,20 +47,36 @@
   - Pi setup only: `bash install_pi.sh`
   - Teardown: `bash remove_things.sh`
   - Pi teardown: `bash remove_pi.sh`
+  - Docker image build (the default config repo is public; no token needed):
+    - `docker buildx build --build-arg PI_SYNC_REF=main -t linux-quick-setup:latest .`
+  - Docker image run (mount the code repo at `/workspace`; add `-e GITHUB_TOKEN` only for a private config repo):
+    - `docker run --rm -it -v "$PWD:/workspace" linux-quick-setup:latest`
+  - Docker Compose (build + interactive shell; add `-e GITHUB_TOKEN` only for a private config repo):
+    - `docker compose up --build`
+  - Docker Compose one-off command:
+    - `docker compose run --rm dev nvim`
+  - Publish the image (manual CI in GitHub Actions; no repository secrets):
+    - GitHub → Actions → "Build and publish image" → Run workflow, or `gh workflow run build-image.yml -f tag=latest -f pi_sync_ref=main`
+  - Pull the published image (public GHCR package; make it public once in the package settings):
+    - `docker pull ghcr.io/glyochi/linux-quick-setup:latest`
+  - Use the published image with Compose:
+    - `docker compose pull && docker compose up --no-build`
 
 ### Lint / Static Checks
-- Bash syntax check (all top-level scripts):
-  - `bash -n back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh`
+- Bash syntax check (all scripts):
+  - `bash -n back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh docker/entrypoint.sh`
 - Bash syntax check (single script):
   - `bash -n utils.sh`
-- ShellCheck (all top-level scripts, when installed):
-  - `shellcheck back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh`
+- ShellCheck (all scripts, when installed):
+  - `shellcheck back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh docker/entrypoint.sh`
 - ShellCheck (single script):
   - `shellcheck install_things.sh`
 - Lua parse smoke check (single file):
   - `nvim --headless '+lua dofile("neovim/lua/gly_custom/plugins/mason.lua")' +qa`
 - Lua integration smoke check (entrypoint):
   - `nvim --headless '+lua dofile("neovim/init.lua")' +qa`
+- Dockerfile static check:
+  - `docker buildx build --check -f Dockerfile .`
 
 ### Test Status
 - There is no formal automated unit/integration test suite currently.
@@ -80,6 +102,10 @@
   1. Run headless `dofile` on each touched Lua file.
   2. Run headless `dofile("neovim/init.lua")` integration smoke check.
 - Mixed Bash + Lua changes: run both workflows.
+- Docker changes:
+  1. `docker buildx build --check -f Dockerfile .`
+  2. `bash -n docker/entrypoint.sh`
+  3. `docker buildx build -t linux-quick-setup:test .` then `docker run --rm linux-quick-setup:test nvim --version`.
 
 ## Bash Style Guidelines
 
@@ -159,6 +185,6 @@
   - expected CI command/entrypoint.
 
 ## Known Gaps
-- No CI pipeline is configured at the time of writing.
+- CI exists only to publish the Docker image (`.github/workflows/build-image.yml`, manual trigger); the Bash/Lua scripts have no CI.
 - No standardized formatter config for Bash/Lua is present.
 - No dedicated automated test suite exists yet.

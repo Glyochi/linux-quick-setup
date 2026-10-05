@@ -8,6 +8,12 @@ PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 PI_SYNC_REPO="${PI_SYNC_REPO:-https://github.com/Glyochi/pi-config-sync.git}"
 PI_GIT_USER="${PI_GIT_USER:-Glyochi}"
 PI_SYNC_PACKAGE="${PI_SYNC_PACKAGE:-npm:pi-config-sync}"
+# Optional tag, branch or commit to pin the config checkout to. Empty means the
+# repository default branch.
+PI_SYNC_REF="${PI_SYNC_REF:-}"
+# Set to 1 to clone/update the config without running `pi install`. Image builds
+# seed a pinned package tree instead, keeping settings.json identical to the repo.
+PI_SYNC_SKIP_INSTALL="${PI_SYNC_SKIP_INSTALL:-0}"
 
 # A freshly installed pi binary may not be on PATH in this shell yet.
 export PATH="$HOME/.local/bin:$PATH"
@@ -27,51 +33,97 @@ else
 	print_info "Installed pi successfully.\n"
 fi
 
-### Authenticate git for a private HTTPS config repository
-# The token is stored once per machine in ~/.git-credentials. SSH remotes skip
-# this and rely on the machine's SSH key instead.
+### Authenticate git for the HTTPS config repository
+# A publicly readable repo needs no credentials. Private repos use GITHUB_TOKEN
+# or a TTY prompt, stored once per machine in ~/.git-credentials. SSH remotes
+# skip this and rely on the machine's SSH key instead.
+repo_allows_anonymous_access(){
+	# Clear any stored helper so this is a true anonymous probe.
+	GIT_TERMINAL_PROMPT=0 git \
+		-c credential.helper= \
+		-c credential.https://github.com.helper= \
+		ls-remote "$1" HEAD >/dev/null 2>&1
+}
+
 if [[ "$PI_SYNC_REPO" == https://* ]]; then
-	# Always ask for a fresh token. A previously stored or externally provided
-	# credential (gh, keyring, an old ~/.git-credentials entry) may be stale, so
-	# never skip the prompt based on what git currently reports.
-	if [[ ! -t 0 ]]; then
-		print_error "'${PI_SYNC_REPO}' needs a GitHub token but stdin is not a terminal.\n"
-		print_error "Set PI_SYNC_REPO to an SSH URL, or add the token to ~/.git-credentials yourself.\n"
-		exit 1
-	fi
-	print_default "The config repo is private, so git needs a GitHub token.\n"
-	print_default "Create a classic token with the 'repo' scope: https://github.com/settings/tokens\n"
-	read -rsp "Paste GitHub token: " github_token
-	echo
-	if [[ -z "$github_token" ]]; then
-		print_error "No token provided; cannot access '${PI_SYNC_REPO}'.\n"
-		exit 1
+	github_token=""
+	if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+		# Non-interactive callers (image builds, CI) pass the token through the
+		# environment instead of a TTY prompt.
+		github_token="$GITHUB_TOKEN"
+		print_info "Using the GitHub token from GITHUB_TOKEN.\n"
+	elif repo_allows_anonymous_access "$PI_SYNC_REPO"; then
+		print_info "'${PI_SYNC_REPO}' is publicly readable; no credentials needed.\n"
+	else
+		# Always ask for a fresh token. A previously stored or externally provided
+		# credential (gh, keyring, an old ~/.git-credentials entry) may be stale, so
+		# never skip the prompt based on what git currently reports.
+		if [[ ! -t 0 ]]; then
+			print_error "'${PI_SYNC_REPO}' needs a GitHub token but stdin is not a terminal.\n"
+			print_error "Set GITHUB_TOKEN, use an SSH PI_SYNC_REPO, or add the token to ~/.git-credentials yourself.\n"
+			exit 1
+		fi
+		print_default "The config repo is private, so git needs a GitHub token.\n"
+		print_default "Create a classic token with the 'repo' scope: https://github.com/settings/tokens\n"
+		read -rsp "Paste GitHub token: " github_token
+		echo
+		if [[ -z "$github_token" ]]; then
+			print_error "No token provided; cannot access '${PI_SYNC_REPO}'.\n"
+			exit 1
+		fi
 	fi
 
-	# Force github.com to use only the credential store, so a stale gh/keyring
-	# helper cannot take precedence over the token just entered.
-	git config --global --remove-section credential.https://github.com 2>/dev/null || true
-	git config --global --replace-all credential.helper ""
-	git config --global --add credential.helper store
-	git config --global --add credential.https://github.com.helper ""
-	git config --global --add credential.https://github.com.helper store
+	if [[ -n "$github_token" ]]; then
+		# Force github.com to use only the credential store, so a stale gh/keyring
+		# helper cannot take precedence over the token just entered.
+		git config --global --remove-section credential.https://github.com 2>/dev/null || true
+		git config --global --replace-all credential.helper ""
+		git config --global --add credential.helper store
+		git config --global --add credential.https://github.com.helper ""
+		git config --global --add credential.https://github.com.helper store
 
-	# Replace any previous github.com credential with the new token.
-	credentials_file="$HOME/.git-credentials"
-	if [[ -f "$credentials_file" ]]; then
-		grep -v 'github.com' "$credentials_file" > "${credentials_file}.tmp" || true
-		mv "${credentials_file}.tmp" "$credentials_file"
+		# Replace any previous github.com credential with the new token.
+		credentials_file="$HOME/.git-credentials"
+		if [[ -f "$credentials_file" ]]; then
+			grep -v 'github.com' "$credentials_file" > "${credentials_file}.tmp" || true
+			mv "${credentials_file}.tmp" "$credentials_file"
+		fi
+		printf 'https://%s:%s@github.com\n' "$PI_GIT_USER" "$github_token" >> "$credentials_file"
+		unset github_token
+		chmod 600 "$credentials_file"
+		print_info "Stored the new GitHub credential in ~/.git-credentials.\n"
 	fi
-	printf 'https://%s:%s@github.com\n' "$PI_GIT_USER" "$github_token" >> "$credentials_file"
-	unset github_token
-	chmod 600 "$credentials_file"
-	print_info "Stored the new GitHub credential in ~/.git-credentials.\n"
 fi
 
 ### Clone or update the pi agent config repository
+clone_pi_config(){
+	local target="$1"
+	if ! GIT_TERMINAL_PROMPT=0 git clone "${PI_SYNC_REPO}" "${target}"; then
+		return 1
+	fi
+	if [[ -n "$PI_SYNC_REF" ]]; then
+		print_default "Checking out pinned ref '${PI_SYNC_REF}'...\n"
+		if ! GIT_TERMINAL_PROMPT=0 git -C "${target}" checkout "${PI_SYNC_REF}"; then
+			return 1
+		fi
+	fi
+	return 0
+}
+
+update_pi_config(){
+	if [[ -z "$PI_SYNC_REF" ]]; then
+		GIT_TERMINAL_PROMPT=0 git -C "${PI_AGENT_DIR}" pull --ff-only || return 1
+		return 0
+	fi
+	GIT_TERMINAL_PROMPT=0 git -C "${PI_AGENT_DIR}" fetch origin "${PI_SYNC_REF}" || return 1
+	GIT_TERMINAL_PROMPT=0 git -C "${PI_AGENT_DIR}" checkout "${PI_SYNC_REF}" || return 1
+	GIT_TERMINAL_PROMPT=0 git -C "${PI_AGENT_DIR}" merge --ff-only FETCH_HEAD || return 1
+	return 0
+}
+
 if [[ -d "${PI_AGENT_DIR}/.git" ]]; then
 	print_default "Updating pi config at '${PI_AGENT_DIR}'...\n"
-	if ! GIT_TERMINAL_PROMPT=0 git -C "${PI_AGENT_DIR}" pull --ff-only; then
+	if ! update_pi_config; then
 		print_warning "Could not update pi config; continuing with the local checkout.\n"
 	fi
 elif [[ -e "${PI_AGENT_DIR}" ]]; then
@@ -81,7 +133,7 @@ elif [[ -e "${PI_AGENT_DIR}" ]]; then
 	print_warning "'${PI_AGENT_DIR}' already exists and is not a git repo; backing it up to '${backup_dir}'.\n"
 	mv "${PI_AGENT_DIR}" "${backup_dir}"
 	print_default "Cloning pi config from '${PI_SYNC_REPO}'...\n"
-	if ! GIT_TERMINAL_PROMPT=0 git clone "${PI_SYNC_REPO}" "${PI_AGENT_DIR}"; then
+	if ! clone_pi_config "${PI_AGENT_DIR}"; then
 		print_error "Failed to clone pi config from '${PI_SYNC_REPO}'.\n"
 		print_error "Check that the GitHub token is valid and has the 'repo' scope.\n"
 		print_error "Your previous config is safe at '${backup_dir}'.\n"
@@ -89,7 +141,7 @@ elif [[ -e "${PI_AGENT_DIR}" ]]; then
 	fi
 else
 	print_default "Cloning pi config from '${PI_SYNC_REPO}'...\n"
-	if ! GIT_TERMINAL_PROMPT=0 git clone "${PI_SYNC_REPO}" "${PI_AGENT_DIR}"; then
+	if ! clone_pi_config "${PI_AGENT_DIR}"; then
 		print_error "Failed to clone pi config from '${PI_SYNC_REPO}'.\n"
 		print_error "Check that the GitHub token is valid and has the 'repo' scope.\n"
 		exit 1
@@ -97,10 +149,14 @@ else
 fi
 
 ### Install the sync package (idempotent) so /gitsync is available
-print_default "Installing ${PI_SYNC_PACKAGE}...\n"
-if ! pi install "${PI_SYNC_PACKAGE}"; then
-	print_error "Failed to install ${PI_SYNC_PACKAGE}.\n"
-	exit 1
+if [[ "$PI_SYNC_SKIP_INSTALL" == "1" ]]; then
+	print_warning "Skipping '${PI_SYNC_PACKAGE}' install (PI_SYNC_SKIP_INSTALL=1).\n"
+else
+	print_default "Installing ${PI_SYNC_PACKAGE}...\n"
+	if ! pi install "${PI_SYNC_PACKAGE}"; then
+		print_error "Failed to install ${PI_SYNC_PACKAGE}.\n"
+		exit 1
+	fi
 fi
 
 print_info "Pi setup complete.\n"
