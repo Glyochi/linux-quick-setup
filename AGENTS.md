@@ -8,12 +8,11 @@
 ## Repository Map
 - `install_things.sh`: main installer flow (Neovim download/install + config linking).
 - `install_dependencies.sh`: installs external CLI dependencies (currently opencode CLI).
-- `install_pi.sh`: installs Pi, clones/updates the pi-config-sync repo at `~/.pi/agent` (no credentials for a public repo, token for a private one), installs `npm:pi-config-sync`.
+- `install_pi.sh`: installs Pi and clones/updates the pi-config-sync repo at `~/.pi/agent` (no credentials for a public repo, token for a private one); Pi installs the packages declared in its settings.json on first run.
 - `remove_pi.sh`: teardown for Pi config and installs (the synced config remains on the remote).
 - `remove_things.sh`: teardown for Neovim config/data.
 - `Dockerfile` / `.dockerignore`: reusable image that ships the pinned Neovim + Pi environment plus a `/linux-quick-setup` git checkout for in-container editing.
-- `docker/entrypoint.sh`: container entrypoint; pull-only config fast-forward then exec.
-- `docker/pi-packages.json`: exact pinned Pi package versions baked into the image.
+- `docker/entrypoint.sh`: container entrypoint; pull-only config refresh (fast-forward, else reset to the remote) then exec.
 - `docker-compose.yaml`: brings up the image with the code mounted at `/workspace` and Pi state in named volumes.
 - `.github/workflows/build-image.yml`: manual workflow that builds and publishes the image to GHCR.
 - `docs/plans/**`: implementation plans and progress logs.
@@ -36,6 +35,7 @@
 - Main Neovim version target in installer: `v0.11.1`.
 - Scripts may depend on tools like `sudo`, `wget`, `tar`, `tree`, `tput`, and `curl`.
 - The Docker image targets glibc Debian-based images on `amd64` only (no Alpine/musl, no arm64); `debian:bookworm-slim` is the default and only built/verified variant, while `BASE_IMAGE` can re-base onto other glibc images (unverified).
+- Pi extension versions are pinned in the config repo's `~/.pi/agent/settings.json`; the image seeds `~/.pi/agent/npm` from it read-only, and the container resets to the remote config when histories diverge.
 
 ## Build, Lint, and Test Commands
 

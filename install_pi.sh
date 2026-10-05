@@ -7,13 +7,9 @@ set -Eeuo pipefail
 PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 PI_SYNC_REPO="${PI_SYNC_REPO:-https://github.com/Glyochi/pi-config-sync.git}"
 PI_GIT_USER="${PI_GIT_USER:-Glyochi}"
-PI_SYNC_PACKAGE="${PI_SYNC_PACKAGE:-npm:pi-config-sync}"
 # Optional tag, branch or commit to pin the config checkout to. Empty means the
 # repository default branch.
 PI_SYNC_REF="${PI_SYNC_REF:-}"
-# Set to 1 to clone/update the config without running `pi install`. Image builds
-# seed a pinned package tree instead, keeping settings.json identical to the repo.
-PI_SYNC_SKIP_INSTALL="${PI_SYNC_SKIP_INSTALL:-0}"
 
 # A freshly installed pi binary may not be on PATH in this shell yet.
 export PATH="$HOME/.local/bin:$PATH"
@@ -148,17 +144,7 @@ else
 	fi
 fi
 
-### Install the sync package (idempotent) so /gitsync is available
-if [[ "$PI_SYNC_SKIP_INSTALL" == "1" ]]; then
-	print_warning "Skipping '${PI_SYNC_PACKAGE}' install (PI_SYNC_SKIP_INSTALL=1).\n"
-else
-	print_default "Installing ${PI_SYNC_PACKAGE}...\n"
-	if ! pi install "${PI_SYNC_PACKAGE}"; then
-		print_error "Failed to install ${PI_SYNC_PACKAGE}.\n"
-		exit 1
-	fi
-fi
-
 print_info "Pi setup complete.\n"
 print_info "Config repo '${PI_SYNC_REPO}' linked at '${PI_AGENT_DIR}'.\n"
-print_info "Run 'pi', use '/login' for provider auth, and '/gitsync sync' to sync config.\n"
+print_info "Run 'pi': it installs the packages declared in settings.json on first run.\n"
+print_info "Use '/login' for provider auth and '/gitsync sync' to sync config.\n"

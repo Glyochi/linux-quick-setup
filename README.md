@@ -183,7 +183,9 @@ Override any pin with `--build-arg`:
 | `LQS_REF` | `main` | ref for that clone (CI passes the built commit) |
 | `DEV_UID` / `DEV_GID` | `1000` | non-root `dev` user ids |
 
-Pi package versions are pinned in `docker/pi-packages.json`.
+Pi extension versions are pinned in the config repo's `settings.json`
+(`PI_SYNC_REPO`/`PI_SYNC_REF`). The image reads that file and seeds
+`~/.pi/agent/npm` from it, and never writes to it.
 
 Notes:
 - Runs as the non-root `dev` user with the code mounted at `/workspace`. Use
@@ -191,8 +193,8 @@ Notes:
   is not 1000, so files written to the mount are not root-owned.
 - The config repo is public by default and needs no token; a private one can be
   built with a BuildKit secret, and any token is never written into an image layer.
-- Runtime rehydration is pull-only; config changes made in a container are
-  ephemeral.
+- Runtime rehydration is pull-only; if the config repo's history diverged, the
+  container resets to the remote, so container-local config changes are ephemeral.
 - `amd64` and glibc bases only (no Alpine/musl, no arm64). `debian:bookworm-slim`
   is the only built and verified base.
 - `fd` is installed from the base's `fd-find` package (symlinked to `fd`), so Pi

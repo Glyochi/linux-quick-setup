@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Container entrypoint: optionally refresh the baked Pi config, then run the
-# requested command. This is pull-only: it never commits, merges non-fast-forward
-# or pushes, so container-local config changes stay ephemeral.
+# requested command. This is pull-only: it never commits or pushes. If the remote
+# history diverged it resets to the remote, so container-local config changes
+# stay ephemeral.
 #
 #   PI_SYNC_REHYDRATE=0     skip the network refresh entirely (use the baked ref)
 #   GITHUB_TOKEN            optional classic `repo` token; also enables pushes
@@ -42,6 +43,23 @@ prepare_git(){
 	fi
 	if [[ -n "${GIT_USER_EMAIL:-}" ]]; then
 		git config --global user.email "${GIT_USER_EMAIL}"
+	fi
+}
+
+# Make the baked checkout obvious at startup: which ref, and whether the overlay
+# left uncommitted changes (i.e. built from a tree that differed from LQS_REF).
+log_checkout_state(){
+	local repo="/linux-quick-setup"
+	[[ -d "${repo}/.git" ]] || return 0
+	local ref sha changes
+	ref="$(git -C "$repo" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+	[[ "$ref" == "HEAD" ]] && ref="detached"
+	sha="$(git -C "$repo" rev-parse --short HEAD 2>/dev/null || echo '?')"
+	changes="$(git -C "$repo" status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+	if [[ "$changes" != "0" ]]; then
+		log "linux-quick-setup: ${ref} @ ${sha} (${changes} uncommitted change(s))"
+	else
+		log "linux-quick-setup: ${ref} @ ${sha} (clean)"
 	fi
 }
 
@@ -87,8 +105,13 @@ rehydrate(){
 	fi
 
 	if ! GIT_TERMINAL_PROMPT=0 git -C "${PI_AGENT_DIR}" merge --ff-only FETCH_HEAD; then
-		log "WARNING: cannot fast-forward (diverged or locally modified); keeping the baked config."
-		return 0
+		# History diverged (e.g. the branch was rewritten). The remote is
+		# authoritative, so discard the baked/local state and take it.
+		log "WARNING: cannot fast-forward; resetting the baked config to origin/${PI_SYNC_BRANCH}."
+		if ! GIT_TERMINAL_PROMPT=0 git -C "${PI_AGENT_DIR}" reset --hard FETCH_HEAD; then
+			log "WARNING: reset failed; keeping the baked config."
+			return 0
+		fi
 	fi
 
 	log "Config updated to $(git -C "${PI_AGENT_DIR}" rev-parse --short HEAD)."
@@ -97,5 +120,6 @@ rehydrate(){
 
 prepare_auth_storage
 prepare_git
+log_checkout_state
 rehydrate
 exec "$@"

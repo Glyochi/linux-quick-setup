@@ -106,14 +106,34 @@ RUN --mount=type=secret,id=github_token \
 	PI_SYNC_REPO="${PI_SYNC_REPO}" \
 	PI_SYNC_REF="${PI_SYNC_REF}" \
 	PI_GIT_USER="${PI_GIT_USER}" \
-	PI_SYNC_SKIP_INSTALL=1 \
 		bash install_pi.sh \
  && rm -f /home/dev/.git-credentials
 
-### Seed the pinned Pi package tree without mutating the config repo settings.json
-RUN mkdir -p /home/dev/.pi/agent/npm \
- && cp /linux-quick-setup/docker/pi-packages.json /home/dev/.pi/agent/npm/package.json \
- && HOME=/home/dev npm install --prefix /home/dev/.pi/agent/npm --legacy-peer-deps \
+### Seed the pinned Pi package tree from the config repo's settings.json.
+### settings.json is only read; Pi resolves the declared packages from this tree.
+RUN HOME=/home/dev node <<'NODE'
+const fs = require("fs");
+const settingsPath = process.env.HOME + "/.pi/agent/settings.json";
+const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+const dependencies = {};
+for (const entry of settings.packages || []) {
+	const source = typeof entry === "string" ? entry : entry && entry.source;
+	if (typeof source !== "string" || !source.startsWith("npm:")) {
+		if (source) console.error("skipping non-npm package: " + source);
+		continue;
+	}
+	const rest = source.slice(4);
+	const at = rest.lastIndexOf("@");
+	const name = at > 0 ? rest.slice(0, at) : rest;
+	const version = at > 0 ? rest.slice(at + 1) : "*";
+	if (name) dependencies[name] = version;
+}
+const npmDir = process.env.HOME + "/.pi/agent/npm";
+fs.mkdirSync(npmDir, { recursive: true });
+fs.writeFileSync(npmDir + "/package.json", JSON.stringify({ name: "pi-extensions", private: true, dependencies }, null, 2) + "\n");
+console.log("seeded Pi packages: " + JSON.stringify(dependencies));
+NODE
+RUN HOME=/home/dev npm install --prefix /home/dev/.pi/agent/npm --legacy-peer-deps \
  && HOME=/home/dev npm cache clean --force
 
 ### Runtime
