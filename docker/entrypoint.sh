@@ -16,6 +16,20 @@ PI_SYNC_FETCH_TIMEOUT="${PI_SYNC_FETCH_TIMEOUT:-20}"
 
 log(){ printf '[entrypoint] %s\n' "$*" >&2; }
 
+# Persist the Pi login across container runs. auth.json is a symlink into the
+# auth/ volume; pi writes it with writeFileSync, which follows symlinks.
+prepare_auth_storage(){
+	local auth_dir="$HOME/.pi/agent/auth"
+	local auth_file="$HOME/.pi/agent/auth.json"
+	if [[ -d "$auth_file" ]]; then
+		log "WARNING: '${auth_file}' is a directory but pi needs a file. If you bind-mounted a host path that did not exist, remove that directory on the host."
+		return 0
+	fi
+	if [[ -d "$auth_dir" && ! -e "$auth_file" && ! -L "$auth_file" ]]; then
+		ln -s "auth/auth.json" "$auth_file"
+	fi
+}
+
 configure_git_credentials(){
 	local credentials_file="$HOME/.git-credentials"
 	# Mirror install_pi.sh: force github.com through the credential store so a
@@ -66,5 +80,6 @@ rehydrate(){
 	return 0
 }
 
+prepare_auth_storage
 rehydrate
 exec "$@"

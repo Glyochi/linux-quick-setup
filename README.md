@@ -121,9 +121,9 @@ docker compose run --rm dev nvim
 
 Override `CODE_DIR`, `BASE_IMAGE`, `IMAGE_TAG`, `PI_SYNC_REF`,
 `DEV_UID`/`DEV_GID`, or `PI_SYNC_REHYDRATE` through the environment or a `.env`
-file. The host Pi login is shared into the container from `PI_AUTH_FILE`
-(default `~/.pi/agent/auth.json`), so `pi` works without re-authenticating;
-that host file must exist.
+file. The Pi login persists in the `pi-auth` volume, so `pi` stays signed in
+across runs — run `/login` once. To reuse an existing host login instead, follow
+the commented volume in `docker-compose.yaml`.
 
 ## Stacking on another base
 

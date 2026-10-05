@@ -113,7 +113,7 @@ COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh \
  && printf 'export PATH="/usr/local/nvim-linux-x86_64/bin:/opt/node/bin:$PATH"\n' > /etc/profile.d/linux-quick-setup.sh \
  && chmod 0644 /etc/profile.d/linux-quick-setup.sh \
- && mkdir -p /home/dev/.pi/agent/sessions /home/dev/.pi/agent/state \
+ && mkdir -p /home/dev/.pi/agent/sessions /home/dev/.pi/agent/state /home/dev/.pi/agent/auth \
  && chown -R dev:dev /home/dev /opt/linux-quick-setup
 
 ENV PI_SYNC_REPO="${PI_SYNC_REPO}" \
