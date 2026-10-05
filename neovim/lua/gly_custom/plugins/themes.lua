@@ -1,35 +1,43 @@
-
-function TransparentBackground()
-	vim.api.nvim_set_hl(0, "Normal", { bg = "none" })
-	vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none" })
-end
-
-vim.api.nvim_create_autocmd("ColorScheme", {
-	pattern = "*",
-	callback = function()
-		TransparentBackground()
-	end
-})
-
 return {
-        {
-            "ellisonleao/gruvbox.nvim",
-			lazy = false,
-			priority= 1000,
+  {
+    "ellisonleao/gruvbox.nvim",
+    lazy = false,
+    priority = 1000,
+  },
+  {
+    "EdenEast/nightfox.nvim",
+    lazy = false,
+    priority = 1000,
+  },
+  {
+    "folke/tokyonight.nvim",
+    lazy = false,
+    priority = 1000,
+    config = function()
+      vim.cmd("colorscheme tokyonight-night")
+    end,
+  },
+  {
+    "everviolet/nvim",
+    name = "evergarden",
+    lazy = false,
+    priority = 1000, -- Colorscheme plugin is loaded first before any other plugins
+    opts = {
+      theme = {
+        variant = "fall", -- 'winter'|'fall'|'spring'|'summer'
+        accent = "green",
+      },
+      editor = {
+        transparent_background = false,
+        sign = { color = "none" },
+        float = {
+          color = "mantle",
+          solid_border = false,
         },
-		{
-			"EdenEast/nightfox.nvim",
-			lazy = false,
-			priority= 1000,
-		},
-		{
-			"folke/tokyonight.nvim",
-			lazy = false,
-			priority= 1000,
-			config = function()
-				vim.cmd('colorscheme tokyonight')
-				TransparentBackground()
-			end
-		},
+        completion = {
+          color = "surface0",
+        },
+      },
+    },
+  },
 }
-

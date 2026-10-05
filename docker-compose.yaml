@@ -1,0 +1,61 @@
+# Bring up the linux-quick-setup container.
+#
+#   docker compose up --build                            # build locally + interactive shell
+#   docker compose pull && docker compose up --no-build  # use the published image
+#   docker compose run --rm dev nvim                     # one-off command
+#
+# The image defaults to the published ghcr.io/glyochi/linux-quick-setup:latest;
+# override with IMAGE / IMAGE_TAG. A local build tags the result with that same
+# name, so pulling and building are interchangeable.
+#
+# GITHUB_TOKEN is only needed when PI_SYNC_REPO points at a private repo.
+#
+# The code you edit is mounted from ${CODE_DIR:-.} at /workspace. Pi sessions and
+# machine state persist in named volumes; the baked config, pinned Pi packages and
+# Neovim plugins stay in the image.
+
+name: linux-quick-setup
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-debian:bookworm-slim}
+        PI_SYNC_REF: ${PI_SYNC_REF:-main}
+        # Match these to your host ids so files created in /workspace are not root-owned.
+        DEV_UID: ${DEV_UID:-1000}
+        DEV_GID: ${DEV_GID:-1000}
+      # Optional: only needed when PI_SYNC_REPO is private.
+      secrets:
+        - github_token
+    image: ${IMAGE:-ghcr.io/glyochi/linux-quick-setup}:${IMAGE_TAG:-latest}
+    working_dir: /workspace
+    init: true
+    stdin_open: true
+    tty: true
+    environment:
+      TERM: ${TERM:-xterm-256color}
+      # Optional: only needed for a private config repo; public repos fetch anonymously.
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      PI_SYNC_BRANCH: ${PI_SYNC_BRANCH:-main}
+      PI_SYNC_REHYDRATE: ${PI_SYNC_REHYDRATE:-1}
+      PI_SYNC_FETCH_TIMEOUT: ${PI_SYNC_FETCH_TIMEOUT:-20}
+    volumes:
+      - ${CODE_DIR:-.}:/workspace
+      - pi-sessions:/home/dev/.pi/agent/sessions
+      - pi-state:/home/dev/.pi/agent/state
+      # Share the host Pi login so `pi` works without re-authenticating. The host
+      # file must exist; set PI_AUTH_FILE to use a different one.
+      - ${PI_AUTH_FILE:-${HOME}/.pi/agent/auth.json}:/home/dev/.pi/agent/auth.json
+    command: ["bash", "-l"]
+
+volumes:
+  pi-sessions:
+  pi-state:
+
+# Only used when building from a private PI_SYNC_REPO.
+secrets:
+  github_token:
+    environment: GITHUB_TOKEN

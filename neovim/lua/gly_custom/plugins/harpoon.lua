@@ -1,57 +1,59 @@
 return {
-    {
-        'ThePrimeagen/harpoon',
-        branch = 'harpoon2',
-        dependencies = {
-            'nvim-lua/plenary.nvim',
-            'nvim-telescope/telescope.nvim'
-        },
-        config = function()
+	{
+		"ThePrimeagen/harpoon",
+		branch = "harpoon2",
+		dependencies = {
+			"nvim-lua/plenary.nvim",
+			"nvim-telescope/telescope.nvim",
+		},
+		config = function()
+			local harpoon = require("harpoon")
+			harpoon:setup({})
 
-            local harpoon = require('harpoon')
-            harpoon:setup({})
+			vim.keymap.set("n", "<leader>ea", function()
+				harpoon:list():add()
+				print("Added to harpoon successfully")
+			end)
+			vim.keymap.set("n", "<leader>ed", function()
+				harpoon:list():remove()
+				print("Removed from harpoon successfully")
+			end)
+			vim.keymap.set("n", "<leader>ee", function()
+				harpoon.ui:toggle_quick_menu(harpoon:list())
+			end)
 
-            vim.keymap.set('n', '<leader>ea', function()
-                harpoon:list():add()
-                print("Added to harpoon successfully")
-            end)
-            vim.keymap.set('n', '<leader>ed', function()
-                harpoon:list():remove()
-                print("Removed from harpoon successfully")
-            end)
-            vim.keymap.set('n', '<leader>ee', function() harpoon.ui:toggle_quick_menu(harpoon:list()) end)
+			vim.keymap.set("n", "<leader>ej", function()
+				harpoon:list():select(1)
+			end)
+			vim.keymap.set("n", "<leader>ek", function()
+				harpoon:list():select(2)
+			end)
+			vim.keymap.set("n", "<leader>el", function()
+				harpoon:list():select(3)
+			end)
+			vim.keymap.set("n", "<leader>e;", function()
+				harpoon:list():select(4)
+			end)
 
+			-- basic telescope configuration
+			-- local conf = require("telescope.config").values
+			-- local function toggle_telescope(harpoon_files)
+			--     local file_paths = {}
+			--     for _, item in ipairs(harpoon_files.items) do
+			--         table.insert(file_paths, item.value)
+			--     end
 
-
-
-
-            vim.keymap.set("n", "<leader>ej", function() harpoon:list():select(1) end)
-            vim.keymap.set("n", "<leader>ek", function() harpoon:list():select(2) end)
-            vim.keymap.set("n", "<leader>el", function() harpoon:list():select(3) end)
-            vim.keymap.set("n", "<leader>e;", function() harpoon:list():select(4) end)
-
-
-
-            -- basic telescope configuration
-            -- local conf = require("telescope.config").values
-            -- local function toggle_telescope(harpoon_files)
-            --     local file_paths = {}
-            --     for _, item in ipairs(harpoon_files.items) do
-            --         table.insert(file_paths, item.value)
-            --     end
-
-            --     require("telescope.pickers").new({}, {
-            --         prompt_title = "Harpoon",
-            --         finder = require("telescope.finders").new_table({
-            --             results = file_paths,
-            --         }),
-            --         previewer = conf.file_previewer({}),
-            --         sorter = conf.generic_sorter({}),
-            --     }):find()
-            -- end
-            -- vim.keymap.set("n", "<leader>e", function() toggle_telescope(harpoon:list()) end,
-            --     { desc = "Open harpoon window" })
-
-        end
-    }
+			--     require("telescope.pickers").new({}, {
+			--         prompt_title = "Harpoon",
+			--         finder = require("telescope.finders").new_table({
+			--             results = file_paths,
+			--         }),
+			--         previewer = conf.file_previewer({}),
+			--         sorter = conf.generic_sorter({}),
+			--     }):find()
+			-- end
+			-- vim.keymap.set("n", "<leader>e", function() toggle_telescope(harpoon:list()) end,
+			--     { desc = "Open harpoon window" })
+		end,
+	},
 }

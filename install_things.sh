@@ -6,10 +6,29 @@ CURRENT_DIR="$(pwd)"
 TMP_DIR="$CURRENT_DIR/tmp"
 mkdir -p "${TMP_DIR}"
 
+### Configurable install knobs. Defaults preserve the interactive host flow.
+NEOVIM_VERSION="${NEOVIM_VERSION:-v0.11.1}"
+NEOVIM_INSTALL_DIR="${NEOVIM_INSTALL_DIR:-/usr/local}"
+# ${SUDO-sudo} (not :-) so an explicit empty SUDO disables it for root/containers.
+SUDO="${SUDO-sudo}"
+# Non-interactive mode: explicit PI_NONINTERACTIVE=1, or stdin is not a TTY.
+PI_NONINTERACTIVE="${PI_NONINTERACTIVE:-0}"
+if [[ "$PI_NONINTERACTIVE" != "1" && ! -t 0 ]]; then
+	PI_NONINTERACTIVE=1
+fi
+
+run_privileged(){
+	if [[ -n "$SUDO" ]]; then
+		"$SUDO" "$@"
+	else
+		"$@"
+	fi
+}
+
 
 ### Setup neovim
 print_info "Checking if neovim is installed...\n"
-TARGET_NEOVIM_VERSION="v0.11.1"
+TARGET_NEOVIM_VERSION="$NEOVIM_VERSION"
 neovim_response="$(nvim --version || echo 'False')" 
 if [[ "$neovim_response" != "False" ]]; then
     read_string_lines_into_array "$neovim_response"
@@ -19,22 +38,27 @@ if [[ "$neovim_response" != "False" ]]; then
     if [[ "$neovim_version" == "$TARGET_NEOVIM_VERSION" ]]; then
         print_info "Neovim is already installed with version $neovim_version!\n"
     else
-        prompt_message="Neovim is already installed with version $neovim_version. The prefered version is $TARGET_NEOVIM_VERSION. Do you wish to continue with your neovim version?\n" 
-        print_warning "$prompt_message"
-        tmp_array=("No" "Yes")
+        prompt_message="Neovim is already installed with version $neovim_version. The prefered version is $TARGET_NEOVIM_VERSION. Do you wish to continue with your neovim version?\n"
+        if [[ "$PI_NONINTERACTIVE" == "1" ]]; then
+            print_warning "$prompt_message"
+            print_warning "Non-interactive mode: keeping the installed Neovim version.\n"
+        else
+            print_warning "$prompt_message"
+            tmp_array=("No" "Yes")
 
-        MENU ${tmp_array[@]}
-        response="${RETURN_0}"
+            MENU ${tmp_array[@]}
+            response="${RETURN_0}"
 
-        clear_previous_string "$prompt_message"
+            clear_previous_string "$prompt_message"
 
-        if [[ "$response" = "No" ]]; then
-            print_warning "Installing neovim aborted!\n"
-            exit
+            if [[ "$response" = "No" ]]; then
+                print_warning "Installing neovim aborted!\n"
+                exit
+            fi
+
+            print_warning "Continuing with Neovim version $TARGET_NEOVIM_VERSION...\n"
         fi
-
-        print_warning "Continuing with Neovim version $TARGET_NEOVIM_VERSION...\n"
-    fi  
+    fi
 
 else
 	cd "$TMP_DIR"
@@ -60,16 +84,20 @@ else
 	fi
 	
 	print_default "Installing Neovim...\n"
-	move_response=$(sudo rm -fr "/usr/local/nvim-linux-x86_64" && sudo mv -f "nvim-linux-x86_64" "/usr/local" || echo "False")
+	move_response=$(run_privileged mkdir -p "${NEOVIM_INSTALL_DIR}" && run_privileged rm -fr "${NEOVIM_INSTALL_DIR}/nvim-linux-x86_64" && run_privileged mv -f "nvim-linux-x86_64" "${NEOVIM_INSTALL_DIR}" || echo "False")
 	if [[ "$move_response" == "False" ]]; then
-		print_error "Fail to move 'nvim-linux-x86_64.tar.gz' to '/usr/local'\n"
+		print_error "Fail to move 'nvim-linux-x86_64.tar.gz' to '${NEOVIM_INSTALL_DIR}'\n"
 		exit
 	fi
 
-	add_to_bashrc_response=$(sudo echo -e "\\n\\nexport PATH=\$PATH:/usr/local/nvim-linux-x86_64/bin\\nalias vim='nvim'" >> ~/.bashrc || echo "False")
-	if [[ "$add_to_bashrc_response" == "False" ]]; then
-		print_error "Fail to add Neovim bin path to .bashrc, try again with sudo perhaps?\n"
-		exit
+	if [[ "$PI_NONINTERACTIVE" == "1" ]]; then
+		print_default "Skipping ~/.bashrc update in non-interactive mode.\n"
+	else
+		add_to_bashrc_response=$(echo -e "\\n\\nexport PATH=\$PATH:${NEOVIM_INSTALL_DIR}/nvim-linux-x86_64/bin\\nalias vim='nvim'" >> ~/.bashrc || echo "False")
+		if [[ "$add_to_bashrc_response" == "False" ]]; then
+			print_error "Fail to add Neovim bin path to .bashrc, try again with sudo perhaps?\n"
+			exit
+		fi
 	fi
 
 	print_info "Successfully installed Neovim $TARGET_NEOVIM_VERSION\n"
@@ -92,18 +120,22 @@ TARGET_GLY_CUSTOM_DIR="${TARGET_LUA_DIR}/gly_custom"
 source_path="${SOURCE_ROOT_DIR}/init.lua"
 target_path="${TARGET_ROOT_DIR}/init.lua"	
 if [[ -f "${target_path}" ]]; then
-	prompt_message="Configurations at '${target_path}' already exists. Do you want to replace it?\n" 
-	print_warning "$prompt_message"
-	tmp_array=("No" "Yes")
+	prompt_message="Configurations at '${target_path}' already exists. Do you want to replace it?\n"
+	if [[ "$PI_NONINTERACTIVE" == "1" ]]; then
+		print_warning "Configurations at '${target_path}' already exist; replacing them (non-interactive).\n"
+	else
+		print_warning "$prompt_message"
+		tmp_array=("No" "Yes")
 
-	MENU ${tmp_array[@]}
-	response="${RETURN_0}"
+		MENU ${tmp_array[@]}
+		response="${RETURN_0}"
 
-	clear_previous_string "$prompt_message"
+		clear_previous_string "$prompt_message"
 
-	if [[ "$response" = "No" ]]; then
-		print_warning "Configuring neovim aborted.\n"
-		exit
+		if [[ "$response" = "No" ]]; then
+			print_warning "Configuring neovim aborted.\n"
+			exit
+		fi
 	fi
 fi
 
@@ -114,6 +146,10 @@ target_path="${TARGET_ROOT_DIR}/.luarc.json"
 ln -fs "${source_path}" "${target_path}"
 
 
+# Locking down on the plugins version
+source_path="${SOURCE_ROOT_DIR}/lazy-lock.json"
+target_path="${TARGET_ROOT_DIR}/lazy-lock.json"	
+ln -fs "${source_path}" "${target_path}"
 
 # Set up base directory + nuke if already exists
 print_default "Creating directory...\n"

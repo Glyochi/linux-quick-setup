@@ -1,0 +1,6 @@
+# Keep the build context small and reproducible: local caches and VCS metadata
+# must never be copied into the image.
+.git
+tmp/
+*.tar.gz
+node_modules/
