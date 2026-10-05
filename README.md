@@ -53,8 +53,9 @@ Skills live in `~/.pi/agent/skills/` and load in every project.
 
 Build a reusable image that ships the pinned Neovim + config, pinned Pi, the
 pinned Pi package tree, and the `pi-config-sync` config repo baked at a pinned
-ref. Only the toolchain and config live in the image; mount the code you
-want to edit at `/workspace`.
+ref. The linux-quick-setup repo is also cloned into `/linux-quick-setup` so you
+can edit (for example) the Neovim config inside the container and push it. Mount
+the code you want to work on at `/workspace`.
 
 ```bash
 docker build --build-arg PI_SYNC_REF=<tag-or-sha> -t linux-quick-setup:latest .
@@ -74,6 +75,31 @@ docker run --rm -it \
 
 Use `nvim` and `pi` inside the container. Add `-e GITHUB_TOKEN` only for a
 private repo, or set `PI_SYNC_REHYDRATE=0` to skip the fetch.
+
+## Editing linux-quick-setup in the container
+
+The image ships a real git checkout of this repo at `/linux-quick-setup` with an
+`origin` remote. `~/.config/nvim` symlinks into `/linux-quick-setup/neovim`, so
+edits there take effect immediately in Neovim and show up in `git status`.
+`vim` and `vi` are aliased to `nvim` in the login profile and `~/.bashrc`.
+
+To commit and push from inside the container, provide the token (for auth) and
+an identity:
+
+```bash
+docker compose run --rm -it \
+  -e GITHUB_TOKEN -e GIT_USER_NAME="You" -e GIT_USER_EMAIL=you@example.com dev bash -l
+# inside the container:
+git -C /linux-quick-setup checkout -b my-change
+$EDITOR /linux-quick-setup/neovim/init.lua
+git -C /linux-quick-setup add -A
+git -C /linux-quick-setup commit -m "tweak neovim"
+git -C /linux-quick-setup push -u origin my-change
+```
+
+`LQS_REF` (build arg) controls the ref the image clones and defaults to `main`.
+Build with `LQS_REF=$(git rev-parse HEAD)` (or your branch) so the baked checkout
+matches your tree instead of `main`.
 
 ## Published image (CI)
 
@@ -121,9 +147,9 @@ docker compose run --rm dev nvim
 
 Override `CODE_DIR`, `BASE_IMAGE`, `IMAGE_TAG`, `PI_SYNC_REF`,
 `DEV_UID`/`DEV_GID`, or `PI_SYNC_REHYDRATE` through the environment or a `.env`
-file. The host Pi login is shared into the container from `PI_AUTH_FILE`
-(default `~/.pi/agent/auth.json`), so `pi` works without re-authenticating;
-that host file must exist.
+file. The Pi login persists in the `pi-auth` volume, so `pi` stays signed in
+across runs — run `/login` once. To reuse an existing host login instead, follow
+the commented volume in `docker-compose.yaml`.
 
 ## Stacking on another base
 
@@ -153,9 +179,13 @@ Override any pin with `--build-arg`:
 | `PI_SYNC_REF` | `main` | config repo tag/branch/commit to bake |
 | `PI_SYNC_BRANCH` | `main` | branch the entrypoint fast-forwards to |
 | `PI_GIT_USER` | `Glyochi` | user stored in the git credential |
+| `LQS_REPO` | `https://github.com/Glyochi/linux-quick-setup.git` | repo cloned into `/linux-quick-setup` |
+| `LQS_REF` | `main` | ref for that clone (CI passes the built commit) |
 | `DEV_UID` / `DEV_GID` | `1000` | non-root `dev` user ids |
 
-Pi package versions are pinned in `docker/pi-packages.json`.
+Pi extension versions are pinned in the config repo's `settings.json`
+(`PI_SYNC_REPO`/`PI_SYNC_REF`). The image reads that file and seeds
+`~/.pi/agent/npm` from it, and never writes to it.
 
 Notes:
 - Runs as the non-root `dev` user with the code mounted at `/workspace`. Use
@@ -163,8 +193,8 @@ Notes:
   is not 1000, so files written to the mount are not root-owned.
 - The config repo is public by default and needs no token; a private one can be
   built with a BuildKit secret, and any token is never written into an image layer.
-- Runtime rehydration is pull-only; config changes made in a container are
-  ephemeral.
+- Runtime rehydration is pull-only; if the config repo's history diverged, the
+  container resets to the remote, so container-local config changes are ephemeral.
 - `amd64` and glibc bases only (no Alpine/musl, no arm64). `debian:bookworm-slim`
   is the only built and verified base.
 - `fd` is installed from the base's `fd-find` package (symlinked to `fd`), so Pi

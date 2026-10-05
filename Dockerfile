@@ -2,7 +2,7 @@
 
 # Build the linux-quick-setup environment as a reusable image: pinned Neovim +
 # repo config + locked plugins, pinned Pi, a pinned Pi package tree, and the
-# private pi-config-sync config repo baked at a pinned ref.
+# pi-config-sync config repo baked at a pinned ref.
 #
 # Build (the default config repo is public, so no token is required):
 #   docker build --build-arg PI_SYNC_REF=<tag-or-sha> -t linux-quick-setup:latest .
@@ -11,8 +11,9 @@
 # Re-base onto another glibc image (Debian-based by default), e.g.:
 #   docker build --build-arg BASE_IMAGE=python:3.12-slim ...
 #
-# The code repo is expected to be mounted at /workspace at runtime. Only the
-# toolchain and config are baked in; the repository itself is not copied.
+# The linux-quick-setup repo is cloned into /linux-quick-setup so it can be
+# edited and pushed from inside the container; mount the code you want to work
+# on at /workspace at runtime.
 
 ARG BASE_IMAGE=debian:bookworm-slim
 FROM ${BASE_IMAGE}
@@ -28,6 +29,8 @@ ARG PI_SYNC_BRANCH=main
 ARG PI_GIT_USER=Glyochi
 ARG DEV_UID=1000
 ARG DEV_GID=1000
+ARG LQS_REPO=https://github.com/Glyochi/linux-quick-setup.git
+ARG LQS_REF=main
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -68,10 +71,17 @@ RUN set -eux; \
 
 ENV HOME=/home/dev
 
-### Neovim + repo config, reusing install_things.sh in non-interactive mode
-COPY utils.sh back_bone.sh install_things.sh install_pi.sh /opt/linux-quick-setup/
-COPY neovim/ /opt/linux-quick-setup/neovim/
-WORKDIR /opt/linux-quick-setup
+### linux-quick-setup checkout: clone for real git history and an origin remote,
+### then overlay the exact build context so the install matches what is being
+### built. .dockerignore keeps the context's .git out, so the clone's .git survives.
+RUN git clone "${LQS_REPO}" /linux-quick-setup \
+ && git -C /linux-quick-setup checkout "${LQS_REF}"
+COPY . /linux-quick-setup/
+
+### Neovim + repo config, reusing install_things.sh in non-interactive mode.
+### Running from the checkout makes ~/.config/nvim symlink into it, so edits
+### made in the container are live and tracked by git.
+WORKDIR /linux-quick-setup
 RUN HOME=/home/dev SUDO="" PI_NONINTERACTIVE=1 NEOVIM_VERSION="${NEOVIM_VERSION}" \
 		bash install_things.sh
 
@@ -96,25 +106,45 @@ RUN --mount=type=secret,id=github_token \
 	PI_SYNC_REPO="${PI_SYNC_REPO}" \
 	PI_SYNC_REF="${PI_SYNC_REF}" \
 	PI_GIT_USER="${PI_GIT_USER}" \
-	PI_SYNC_SKIP_INSTALL=1 \
 		bash install_pi.sh \
  && rm -f /home/dev/.git-credentials
 
-### Seed the pinned Pi package tree without mutating the config repo settings.json
-COPY docker/pi-packages.json /opt/linux-quick-setup/docker/pi-packages.json
-RUN mkdir -p /home/dev/.pi/agent/npm \
- && cp /opt/linux-quick-setup/docker/pi-packages.json /home/dev/.pi/agent/npm/package.json \
- && HOME=/home/dev npm install --prefix /home/dev/.pi/agent/npm --legacy-peer-deps \
+### Seed the pinned Pi package tree from the config repo's settings.json.
+### settings.json is only read; Pi resolves the declared packages from this tree.
+RUN HOME=/home/dev node <<'NODE'
+const fs = require("fs");
+const settingsPath = process.env.HOME + "/.pi/agent/settings.json";
+const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+const dependencies = {};
+for (const entry of settings.packages || []) {
+	const source = typeof entry === "string" ? entry : entry && entry.source;
+	if (typeof source !== "string" || !source.startsWith("npm:")) {
+		if (source) console.error("skipping non-npm package: " + source);
+		continue;
+	}
+	const rest = source.slice(4);
+	const at = rest.lastIndexOf("@");
+	const name = at > 0 ? rest.slice(0, at) : rest;
+	const version = at > 0 ? rest.slice(at + 1) : "*";
+	if (name) dependencies[name] = version;
+}
+const npmDir = process.env.HOME + "/.pi/agent/npm";
+fs.mkdirSync(npmDir, { recursive: true });
+fs.writeFileSync(npmDir + "/package.json", JSON.stringify({ name: "pi-extensions", private: true, dependencies }, null, 2) + "\n");
+console.log("seeded Pi packages: " + JSON.stringify(dependencies));
+NODE
+RUN HOME=/home/dev npm install --prefix /home/dev/.pi/agent/npm --legacy-peer-deps \
  && HOME=/home/dev npm cache clean --force
 
 ### Runtime
 COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # /etc/profile resets PATH for login shells, so re-add the toolchain there too.
 RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh \
- && printf 'export PATH="/usr/local/nvim-linux-x86_64/bin:/opt/node/bin:$PATH"\n' > /etc/profile.d/linux-quick-setup.sh \
+ && printf 'export PATH="/usr/local/nvim-linux-x86_64/bin:/opt/node/bin:$PATH"\nalias vim=nvim\nalias vi=nvim\n' > /etc/profile.d/linux-quick-setup.sh \
  && chmod 0644 /etc/profile.d/linux-quick-setup.sh \
- && mkdir -p /home/dev/.pi/agent/sessions /home/dev/.pi/agent/state \
- && chown -R dev:dev /home/dev /opt/linux-quick-setup
+ && printf '\n# linux-quick-setup: use nvim for vim/vi\nalias vim=nvim\nalias vi=nvim\n' >> /home/dev/.bashrc \
+ && mkdir -p /home/dev/.pi/agent/sessions /home/dev/.pi/agent/state /home/dev/.pi/agent/auth \
+ && chown -R dev:dev /home/dev /linux-quick-setup
 
 ENV PI_SYNC_REPO="${PI_SYNC_REPO}" \
 	PI_SYNC_BRANCH="${PI_SYNC_BRANCH}"

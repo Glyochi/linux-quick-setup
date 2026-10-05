@@ -10,8 +10,10 @@
 #
 # GITHUB_TOKEN is only needed when PI_SYNC_REPO points at a private repo.
 #
-# The code you edit is mounted from ${CODE_DIR:-.} at /workspace. Pi sessions and
-# machine state persist in named volumes; the baked config, pinned Pi packages and
+# The code you edit is mounted from ${CODE_DIR:-.} at /workspace. The image also
+# ships a linux-quick-setup checkout at /linux-quick-setup (the nvim config lives
+# there, so in-container edits are live and pushable). Pi sessions, machine state
+# and login persist in named volumes; the baked config, pinned Pi packages and
 # Neovim plugins stay in the image.
 
 name: linux-quick-setup
@@ -24,6 +26,9 @@ services:
       args:
         BASE_IMAGE: ${BASE_IMAGE:-debian:bookworm-slim}
         PI_SYNC_REF: ${PI_SYNC_REF:-main}
+        # Ref cloned into /linux-quick-setup. Use $(git rev-parse HEAD) for a
+        # clean checkout that matches the local tree.
+        LQS_REF: ${LQS_REF:-main}
         # Match these to your host ids so files created in /workspace are not root-owned.
         DEV_UID: ${DEV_UID:-1000}
         DEV_GID: ${DEV_GID:-1000}
@@ -39,6 +44,9 @@ services:
       TERM: ${TERM:-xterm-256color}
       # Optional: only needed for a private config repo; public repos fetch anonymously.
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      # Optional commit identity for pushes from /linux-quick-setup.
+      GIT_USER_NAME: ${GIT_USER_NAME:-}
+      GIT_USER_EMAIL: ${GIT_USER_EMAIL:-}
       PI_SYNC_BRANCH: ${PI_SYNC_BRANCH:-main}
       PI_SYNC_REHYDRATE: ${PI_SYNC_REHYDRATE:-1}
       PI_SYNC_FETCH_TIMEOUT: ${PI_SYNC_FETCH_TIMEOUT:-20}
@@ -46,14 +54,19 @@ services:
       - ${CODE_DIR:-.}:/workspace
       - pi-sessions:/home/dev/.pi/agent/sessions
       - pi-state:/home/dev/.pi/agent/state
-      # Share the host Pi login so `pi` works without re-authenticating. The host
-      # file must exist; set PI_AUTH_FILE to use a different one.
-      - ${PI_AUTH_FILE:-${HOME}/.pi/agent/auth.json}:/home/dev/.pi/agent/auth.json
+      # The Pi login persists in this volume; no host file is required.
+      - pi-auth:/home/dev/.pi/agent/auth
+      # To reuse an existing host login instead, comment the pi-auth line above
+      # and uncomment this one. The host file must already exist (a missing path
+      # makes Docker create a directory, which breaks pi):
+      #   mkdir -p ~/.pi/agent && touch ~/.pi/agent/auth.json && chmod 600 ~/.pi/agent/auth.json
+      # - ${PI_AUTH_FILE:-${HOME}/.pi/agent/auth.json}:/home/dev/.pi/agent/auth.json
     command: ["bash", "-l"]
 
 volumes:
   pi-sessions:
   pi-state:
+  pi-auth:
 
 # Only used when building from a private PI_SYNC_REPO.
 secrets:
