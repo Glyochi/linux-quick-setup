@@ -4,7 +4,8 @@
 # or pushes, so container-local config changes stay ephemeral.
 #
 #   PI_SYNC_REHYDRATE=0     skip the network refresh entirely (use the baked ref)
-#   GITHUB_TOKEN            optional classic `repo` token for a private repo
+#   GITHUB_TOKEN            optional classic `repo` token; also enables pushes
+#   GIT_USER_NAME/EMAIL     optional commit identity for /linux-quick-setup
 #   PI_SYNC_BRANCH          branch to fast-forward to (default: main)
 #   PI_SYNC_FETCH_TIMEOUT   fetch timeout in seconds (default: 20)
 set -Eeuo pipefail
@@ -27,6 +28,20 @@ prepare_auth_storage(){
 	fi
 	if [[ -d "$auth_dir" && ! -e "$auth_file" && ! -L "$auth_file" ]]; then
 		ln -s "auth/auth.json" "$auth_file"
+	fi
+}
+
+# The image ships /linux-quick-setup as a git checkout owned by dev. Tolerate a
+# different runtime user, and take an optional commit identity from the env.
+prepare_git(){
+	if ! git config --global --get-all safe.directory 2>/dev/null | grep -qx '/linux-quick-setup'; then
+		git config --global --add safe.directory /linux-quick-setup
+	fi
+	if [[ -n "${GIT_USER_NAME:-}" ]]; then
+		git config --global user.name "${GIT_USER_NAME}"
+	fi
+	if [[ -n "${GIT_USER_EMAIL:-}" ]]; then
+		git config --global user.email "${GIT_USER_EMAIL}"
 	fi
 }
 
@@ -81,5 +96,6 @@ rehydrate(){
 }
 
 prepare_auth_storage
+prepare_git
 rehydrate
 exec "$@"

@@ -65,6 +65,7 @@ jobs:
           platforms: linux/amd64
           build-args: |
             PI_SYNC_REF=${{ inputs.pi_sync_ref }}
+            LQS_REF=${{ github.sha }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           push: true

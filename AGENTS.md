@@ -11,7 +11,7 @@
 - `install_pi.sh`: installs Pi, clones/updates the pi-config-sync repo at `~/.pi/agent` (no credentials for a public repo, token for a private one), installs `npm:pi-config-sync`.
 - `remove_pi.sh`: teardown for Pi config and installs (the synced config remains on the remote).
 - `remove_things.sh`: teardown for Neovim config/data.
-- `Dockerfile` / `.dockerignore`: reusable image that ships the pinned Neovim + Pi environment.
+- `Dockerfile` / `.dockerignore`: reusable image that ships the pinned Neovim + Pi environment plus a `/linux-quick-setup` git checkout for in-container editing.
 - `docker/entrypoint.sh`: container entrypoint; pull-only config fast-forward then exec.
 - `docker/pi-packages.json`: exact pinned Pi package versions baked into the image.
 - `docker-compose.yaml`: brings up the image with the code mounted at `/workspace` and Pi state in named volumes.
@@ -51,6 +51,8 @@
     - `docker buildx build --build-arg PI_SYNC_REF=main -t linux-quick-setup:latest .`
   - Docker image run (mount the code repo at `/workspace`; add `-e GITHUB_TOKEN` only for a private config repo):
     - `docker run --rm -it -v "$PWD:/workspace" linux-quick-setup:latest`
+  - In-container repo for editing/pushing (nvim config symlinks point here):
+    - `/linux-quick-setup` (git checkout; set `GIT_USER_NAME`/`GIT_USER_EMAIL` and `GITHUB_TOKEN` to commit and push)
   - Docker Compose (build + interactive shell; add `-e GITHUB_TOKEN` only for a private config repo):
     - `docker compose up --build`
   - Docker Compose one-off command:
