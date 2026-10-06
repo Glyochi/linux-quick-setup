@@ -44,6 +44,11 @@ prepare_git(){
 	if [[ -n "${GIT_USER_EMAIL:-}" ]]; then
 		git config --global user.email "${GIT_USER_EMAIL}"
 	fi
+	# pi-config-sync commits with a plain `git commit`, which needs an author.
+	if [[ -z "$(git config --global user.name 2>/dev/null || true)" \
+		|| -z "$(git config --global user.email 2>/dev/null || true)" ]]; then
+		log "WARNING: no git identity; commits (e.g. pi-config-sync) will fail. Run setup-git-auth, or set GIT_USER_NAME/GIT_USER_EMAIL."
+	fi
 }
 
 # Make the baked checkout obvious at startup: which ref, and whether the overlay

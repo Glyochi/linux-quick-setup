@@ -76,6 +76,11 @@ docker run --rm -it \
 Use `nvim` and `pi` inside the container. Add `-e GITHUB_TOKEN` only for a
 private repo, or set `PI_SYNC_REHYDRATE=0` to skip the fetch.
 
+The container has no git identity, and pi-config-sync's automatic sync commits
+need one. Set `GIT_USER_NAME`/`GIT_USER_EMAIL` (the entrypoint applies them at
+startup) or run `setup-git-auth` before starting pi, otherwise the sync fails
+with `Author identity unknown`.
+
 ## Editing linux-quick-setup in the container
 
 The image ships a real git checkout of this repo at `/linux-quick-setup` with an
@@ -106,7 +111,10 @@ setup-git-auth --check    # also verifies the token against the GitHub API
 ```
 
 It writes `~/.git-credentials` (mode 600) via the git `store` helper and sets the
-global commit identity, so `git push` works for the rest of the session.
+global commit identity, so `git push` works and pi-config-sync's automatic
+`git commit` has an author. Without `--name`/`--email` it keeps an existing
+identity or falls back to GitHub's noreply address
+(`<user>@users.noreply.github.com`).
 
 `LQS_REF` (build arg) controls the ref the image clones and defaults to `main`.
 Build with `LQS_REF=$(git rev-parse HEAD)` (or your branch) so the baked checkout

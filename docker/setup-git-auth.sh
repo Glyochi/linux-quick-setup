@@ -8,8 +8,10 @@
 # Values not passed on the command line are read from the environment
 # (GITHUB_USER or PI_GIT_USER, GITHUB_TOKEN, GIT_USER_NAME, GIT_USER_EMAIL) and
 # prompted for interactively as a last resort. The token is stored in
-# ~/.git-credentials (mode 600) through the git `store` helper; the commit
-# identity is optional. Pass --check to verify the token against the GitHub API.
+# ~/.git-credentials (mode 600) through the git `store` helper, and the commit
+# identity is set so plain `git commit` (as run by pi-config-sync) works; it
+# falls back to GitHub's noreply address for the given username. Pass --check to
+# verify the token against the GitHub API.
 set -Eeuo pipefail
 
 CREDENTIALS_FILE="${HOME}/.git-credentials"
@@ -34,8 +36,11 @@ Options:
                              or the user already in ~/.git-credentials)
   -t, --token <token>        GitHub token (default: GITHUB_TOKEN; prefer the
                              prompt or the env var, since argv is visible to ps)
-  -n, --name <git-name>      commit identity name (default: GIT_USER_NAME)
-  -e, --email <git-email>    commit identity email (default: GIT_USER_EMAIL)
+  -n, --name <git-name>      commit identity name (default: GIT_USER_NAME, the
+                             existing identity, or the GitHub username)
+  -e, --email <git-email>    commit identity email (default: GIT_USER_EMAIL, the
+                             existing identity, or
+                             <user>@users.noreply.github.com)
   -c, --check                verify the token against the GitHub API
   -h, --help                 show this help
 
@@ -94,16 +99,17 @@ if [[ -z "$github_token" ]]; then
 fi
 [[ -n "$github_token" ]] || die "GitHub token cannot be empty"
 
-# Fill in the commit identity when it is missing and the user can be prompted.
-if [[ -t 0 ]]; then
-	if [[ -z "$git_name" ]]; then
-		git_name="$(git config --global user.name 2>/dev/null || true)"
-		[[ -n "$git_name" ]] || git_name="$(prompt 'Commit name (blank to skip)')"
-	fi
-	if [[ -z "$git_email" ]]; then
-		git_email="$(git config --global user.email 2>/dev/null || true)"
-		[[ -n "$git_email" ]] || git_email="$(prompt 'Commit email (blank to skip)')"
-	fi
+# Commit identity: keep an existing one, otherwise derive GitHub's noreply
+# identity from the username. pi-config-sync commits with a plain `git commit`,
+# which fails with "Author identity unknown" when no identity is configured.
+# Override with --name/--email or GIT_USER_NAME/GIT_USER_EMAIL.
+if [[ -z "$git_name" ]]; then
+	git_name="$(git config --global user.name 2>/dev/null || true)"
+	[[ -n "$git_name" ]] || git_name="$github_user"
+fi
+if [[ -z "$git_email" ]]; then
+	git_email="$(git config --global user.email 2>/dev/null || true)"
+	[[ -n "$git_email" ]] || git_email="${github_user}@users.noreply.github.com"
 fi
 
 # Mirror the entrypoint: pin github.com to the store helper so a stale helper
