@@ -49,6 +49,36 @@ force it.
 
 Skills live in `~/.pi/agent/skills/` and load in every project.
 
+# tmux
+
+The Docker image ships tmux preconfigured from `tmux/.tmux.conf`, which
+`install_things.sh` symlinks to `~/.tmux.conf` — the same pattern as the Neovim
+config, so in-container edits are live and tracked by git. tmux is installed in
+the image only; hosts keep their own.
+
+The config needs **tmux 3.5 or newer** and sets:
+
+- `extended-keys on` with `extended-keys-format csi-u`, so TUI apps such as `pi`
+  can tell `Shift+Enter`, `Ctrl+Enter` and `Enter` apart.
+- `extkeys` in `terminal-features` for `xterm*`, `screen*` and `tmux*`, so
+  modified keys survive nesting inside another tmux.
+- `set-clipboard on`, which copies through OSC 52 — no X11 or clipboard daemon is
+  needed in the container.
+
+Notes:
+
+- The `xterm*`/`screen*`/`tmux*` patterns match the container tmux client's `TERM`.
+  If the container is started from inside a **host** tmux, that host tmux must also
+  enable extended keys (`set -s extended-keys on` on tmux 3.5+) or modified keys
+  never reach the container.
+- `set-clipboard on` uses OSC 52, so the outermost terminal must honor it (an outer
+  host tmux also needs `set -g set-clipboard on`).
+- On a bookworm host the symlinked config is newer than the distro tmux (3.3a),
+  which rejects `extkeys`; install tmux from `bookworm-backports` (3.5a) or remove
+  `~/.tmux.conf`. The symlink is inert when tmux is not installed.
+- The image installs the pinned static build (`TMUX_VERSION` in the table below)
+  because Debian bookworm's tmux 3.3a predates both options.
+
 # Docker
 
 Build a reusable image that ships the pinned Neovim + config, pinned Pi, the
@@ -73,7 +103,7 @@ docker run --rm -it \
   linux-quick-setup:latest
 ```
 
-Use `nvim` and `pi` inside the container. Add `-e GITHUB_TOKEN` only for a
+Use `nvim`, `pi`, and `tmux` inside the container. Add `-e GITHUB_TOKEN` only for a
 private repo, or set `PI_SYNC_REHYDRATE=0` to skip the fetch.
 
 The container has no git identity, and pi-config-sync's automatic sync commits
@@ -87,6 +117,8 @@ The image ships a real git checkout of this repo at `/linux-quick-setup` with an
 `origin` remote. `~/.config/nvim` symlinks into `/linux-quick-setup/neovim`, so
 edits there take effect immediately in Neovim and show up in `git status`.
 `vim` and `vi` are aliased to `nvim` in the login profile and `~/.bashrc`.
+`~/.tmux.conf` symlinks into `/linux-quick-setup/tmux/.tmux.conf` the same way;
+restart the tmux server (`tmux kill-server`) for config changes to take effect.
 
 To commit and push from inside the container, provide the token (for auth) and
 an identity:
@@ -164,7 +196,7 @@ docker compose up --build
 docker compose run --rm dev nvim
 ```
 
-Override `CODE_DIR`, `BASE_IMAGE`, `IMAGE_TAG`, `PI_SYNC_REF`,
+Override `CODE_DIR`, `BASE_IMAGE`, `IMAGE_TAG`, `TMUX_VERSION`, `PI_SYNC_REF`,
 `DEV_UID`/`DEV_GID`, or `PI_SYNC_REHYDRATE` through the environment or a `.env`
 file. The Pi login persists in the `pi-auth` volume, so `pi` stays signed in
 across runs — run `/login` once. To reuse an existing host login instead, follow
@@ -190,6 +222,7 @@ Override any pin with `--build-arg`:
 | --- | --- | --- |
 | `BASE_IMAGE` | `debian:bookworm-slim` | Base image to build on (Debian by default) |
 | `NEOVIM_VERSION` | `v0.11.1` | Neovim release |
+| `TMUX_VERSION` | `3.7c` | tmux static build from `tmux-builds` (image only) |
 | `NODE_VERSION` | `22.23.3` | Node.js (official tarball) |
 | `PI_VERSION` | `1.0.0` | `@earendil-works/pi-coding-agent` |
 | `BASEDPYRIGHT_VERSION` | `1.40.2` | basedpyright |

@@ -25,6 +25,8 @@ services:
       dockerfile: Dockerfile
       args:
         BASE_IMAGE: ${BASE_IMAGE:-debian:bookworm-slim}
+        # tmux version shipped in the image (static build; needs >= 3.5).
+        TMUX_VERSION: ${TMUX_VERSION:-3.7c}
         PI_SYNC_REF: ${PI_SYNC_REF:-main}
         # Ref cloned into /linux-quick-setup. Use $(git rev-parse HEAD) for a
         # clean checkout that matches the local tree.

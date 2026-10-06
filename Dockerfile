@@ -19,6 +19,7 @@ ARG BASE_IMAGE=debian:bookworm-slim
 FROM ${BASE_IMAGE}
 
 ARG NEOVIM_VERSION=v0.11.1
+ARG TMUX_VERSION=3.7c
 ARG NODE_VERSION=22.23.3
 ARG PI_VERSION=1.0.0
 ARG BASEDPYRIGHT_VERSION=1.40.2
@@ -55,6 +56,17 @@ RUN set -eux; \
 	npm --version
 
 ENV PATH="/opt/node/bin:${PATH}"
+
+### Pinned tmux. Debian bookworm ships 3.3a, which predates the extkeys terminal
+### feature and extended-keys-format (tmux 3.5), so install the upstream static
+### release instead: a single fully static binary, amd64 only, no runtime deps.
+RUN set -eux; \
+	curl -fsSL "https://github.com/tmux/tmux-builds/releases/download/v${TMUX_VERSION}/tmux-${TMUX_VERSION}-linux-x86_64.tar.gz" \
+		-o /tmp/tmux.tar.gz; \
+	tar -xzf /tmp/tmux.tar.gz -C /usr/local/bin tmux; \
+	rm /tmp/tmux.tar.gz; \
+	chmod 0755 /usr/local/bin/tmux; \
+	tmux -V
 
 ### Non-root dev user (replaces any base user already holding the target uid/gid)
 RUN set -eux; \

@@ -21,6 +21,7 @@
 - `back_bone.sh`: terminal, color, menu, prompt, and print/log framework.
 - `neovim/init.lua`: Neovim entrypoint.
 - `neovim/lua/gly_custom/**`: custom Neovim modules and plugin specs.
+- `tmux/.tmux.conf`: tmux config, symlinked to `~/.tmux.conf` by `install_things.sh`; the tmux binary itself is installed by the `Dockerfile`.
 
 ## Rule Files (Cursor/Copilot)
 - Checked paths:
@@ -36,6 +37,7 @@
 - Main Neovim version target in installer: `v0.11.1`.
 - Scripts may depend on tools like `sudo`, `wget`, `tar`, `tree`, `tput`, and `curl`.
 - The Docker image targets glibc Debian-based images on `amd64` only (no Alpine/musl, no arm64); `debian:bookworm-slim` is the default and only built/verified variant, while `BASE_IMAGE` can re-base onto other glibc images (unverified).
+- tmux is installed in the image only, from a pinned static build (`TMUX_VERSION`); the shipped `tmux/.tmux.conf` needs tmux 3.5+ (bookworm's apt tmux is 3.3a), and `install_things.sh` symlinks that config on hosts too.
 - Pi extension versions are pinned in the config repo's `~/.pi/agent/settings.json`; the image seeds `~/.pi/agent/npm` from it read-only, and the container resets to the remote config when histories diverge.
 - The image's non-root `dev` user has passwordless `sudo` (`/etc/sudoers.d/dev`) for runtime package installs; those are ephemeral, and the reproducible path is to rebuild the image.
 
@@ -109,7 +111,7 @@
 - Docker changes:
   1. `docker buildx build --check -f Dockerfile .`
   2. `bash -n docker/entrypoint.sh`
-  3. `docker buildx build -t linux-quick-setup:test .` then `docker run --rm linux-quick-setup:test nvim --version`.
+  3. `docker buildx build -t linux-quick-setup:test .` then `docker run --rm linux-quick-setup:test nvim --version` and `docker run --rm linux-quick-setup:test tmux -V`.
 
 ## Bash Style Guidelines
 

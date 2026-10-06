@@ -74,5 +74,19 @@ jobs:
 
       - name: Smoke test published image
         run: |
-          docker run --rm "${{ steps.vars.outputs.image }}:${{ inputs.tag }}" nvim --version | head -1
-          docker run --rm "${{ steps.vars.outputs.image }}:${{ inputs.tag }}" pi --version
+          IMAGE="${{ steps.vars.outputs.image }}:${{ inputs.tag }}"
+          docker run --rm "$IMAGE" nvim --version | head -1
+          docker run --rm "$IMAGE" pi --version
+          docker run --rm "$IMAGE" tmux -V
+          # The baked ~/.tmux.conf must apply when tmux starts a server.
+          docker run --rm "$IMAGE" bash -lc '
+            set -e
+            tmux new-session -d -x 80 -y 24
+            tmux show -s extended-keys | grep -qx "extended-keys on"
+            tmux show -s extended-keys-format | grep -qx "extended-keys-format csi-u"
+            tmux show -g set-clipboard | grep -qx "set-clipboard on"
+            tmux show -s terminal-features | grep -q "xterm\*:extkeys"
+            tmux show -s terminal-features | grep -q "screen\*:extkeys"
+            tmux kill-server
+          '
+          docker run --rm "$IMAGE" readlink -e /home/dev/.tmux.conf | grep -qx /linux-quick-setup/tmux/.tmux.conf

@@ -197,3 +197,36 @@ done
 print_info "Configured neovim successfully!\n"
 tree "${TARGET_ROOT_DIR}"
 
+
+### Setup tmux config
+# tmux itself is not installed here (the Dockerfile ships the pinned static
+# build); this only links the config, which requires tmux 3.5 or newer.
+print_info "Configuring tmux...\n"
+tmux_source_path="${CURRENT_DIR}/tmux/.tmux.conf"
+tmux_target_path="${HOME}/.tmux.conf"
+
+# Only a real file needs a decision; an existing symlink is just relinked below.
+if [[ -e "${tmux_target_path}" && ! -L "${tmux_target_path}" ]]; then
+	prompt_message="Configurations at '${tmux_target_path}' already exists. Do you want to replace it?\n"
+	if [[ "$PI_NONINTERACTIVE" == "1" ]]; then
+		print_warning "Configurations at '${tmux_target_path}' already exist; replacing them (non-interactive).\n"
+	else
+		print_warning "$prompt_message"
+		tmp_array=("No" "Yes")
+
+		MENU ${tmp_array[@]}
+		response="${RETURN_0}"
+
+		clear_previous_string "$prompt_message"
+
+		if [[ "$response" = "No" ]]; then
+			print_warning "Configuring tmux aborted.\n"
+			exit
+		fi
+	fi
+fi
+
+ln -fs "${tmux_source_path}" "${tmux_target_path}"
+
+print_info "Configured tmux successfully!\n"
+
