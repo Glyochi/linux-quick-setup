@@ -42,7 +42,7 @@ RUN set -eux; \
 	fi; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
-		bash ca-certificates curl git wget tar gzip xz-utils unzip \
+		bash ca-certificates curl git wget tar gzip xz-utils unzip sudo \
 		tree ripgrep fd-find build-essential python3 python3-pip; \
 	if fdfind_path="$(command -v fdfind)"; then ln -sf "$fdfind_path" /usr/local/bin/fd; fi; \
 	rm -rf /var/lib/apt/lists/*; \
@@ -66,6 +66,9 @@ RUN set -eux; \
 	fi; \
 	groupadd --gid "${DEV_GID}" dev; \
 	useradd --uid "${DEV_UID}" --gid "${DEV_GID}" --create-home --shell /bin/bash dev; \
+	printf 'dev ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dev; \
+	chmod 0440 /etc/sudoers.d/dev; \
+	visudo --check --file /etc/sudoers.d/dev; \
 	mkdir -p /workspace; \
 	chown dev:dev /workspace /home/dev
 
@@ -138,8 +141,9 @@ RUN HOME=/home/dev npm install --prefix /home/dev/.pi/agent/npm --legacy-peer-de
 
 ### Runtime
 COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker/setup-git-auth.sh /usr/local/bin/setup-git-auth
 # /etc/profile resets PATH for login shells, so re-add the toolchain there too.
-RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh \
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh /usr/local/bin/setup-git-auth \
  && printf 'export PATH="/usr/local/nvim-linux-x86_64/bin:/opt/node/bin:$PATH"\nalias vim=nvim\nalias vi=nvim\n' > /etc/profile.d/linux-quick-setup.sh \
  && chmod 0644 /etc/profile.d/linux-quick-setup.sh \
  && printf '\n# linux-quick-setup: use nvim for vim/vi\nalias vim=nvim\nalias vi=nvim\n' >> /home/dev/.bashrc \
