@@ -13,6 +13,7 @@
 - `remove_things.sh`: teardown for Neovim config/data.
 - `Dockerfile` / `.dockerignore`: reusable image that ships the pinned Neovim + Pi environment plus a `/linux-quick-setup` git checkout for in-container editing.
 - `docker/entrypoint.sh`: container entrypoint; pull-only config refresh (fast-forward, else reset to the remote) then exec.
+- `docker/setup-git-auth.sh`: in-container helper that stores GitHub HTTPS credentials (`~/.git-credentials`) and the commit identity so pushes from `/linux-quick-setup` work.
 - `docker-compose.yaml`: brings up the image with the code mounted at `/workspace` and Pi state in named volumes.
 - `.github/workflows/build-image.yml`: manual workflow that builds and publishes the image to GHCR.
 - `docs/plans/**`: implementation plans and progress logs.
@@ -36,6 +37,7 @@
 - Scripts may depend on tools like `sudo`, `wget`, `tar`, `tree`, `tput`, and `curl`.
 - The Docker image targets glibc Debian-based images on `amd64` only (no Alpine/musl, no arm64); `debian:bookworm-slim` is the default and only built/verified variant, while `BASE_IMAGE` can re-base onto other glibc images (unverified).
 - Pi extension versions are pinned in the config repo's `~/.pi/agent/settings.json`; the image seeds `~/.pi/agent/npm` from it read-only, and the container resets to the remote config when histories diverge.
+- The image's non-root `dev` user has passwordless `sudo` (`/etc/sudoers.d/dev`) for runtime package installs; those are ephemeral, and the reproducible path is to rebuild the image.
 
 ## Build, Lint, and Test Commands
 
@@ -52,7 +54,7 @@
   - Docker image run (mount the code repo at `/workspace`; add `-e GITHUB_TOKEN` only for a private config repo):
     - `docker run --rm -it -v "$PWD:/workspace" linux-quick-setup:latest`
   - In-container repo for editing/pushing (nvim config symlinks point here):
-    - `/linux-quick-setup` (git checkout; set `GIT_USER_NAME`/`GIT_USER_EMAIL` and `GITHUB_TOKEN` to commit and push)
+    - `/linux-quick-setup` (git checkout; run `setup-git-auth` or set `GIT_USER_NAME`/`GIT_USER_EMAIL` and `GITHUB_TOKEN` to commit and push)
   - Docker Compose (build + interactive shell; add `-e GITHUB_TOKEN` only for a private config repo):
     - `docker compose up --build`
   - Docker Compose one-off command:
@@ -66,11 +68,11 @@
 
 ### Lint / Static Checks
 - Bash syntax check (all scripts):
-  - `bash -n back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh docker/entrypoint.sh`
+  - `bash -n back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh docker/entrypoint.sh docker/setup-git-auth.sh`
 - Bash syntax check (single script):
   - `bash -n utils.sh`
 - ShellCheck (all scripts, when installed):
-  - `shellcheck back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh docker/entrypoint.sh`
+  - `shellcheck back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh docker/entrypoint.sh docker/setup-git-auth.sh`
 - ShellCheck (single script):
   - `shellcheck install_things.sh`
 - Lua parse smoke check (single file):

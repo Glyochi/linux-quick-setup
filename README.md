@@ -97,6 +97,17 @@ git -C /linux-quick-setup commit -m "tweak neovim"
 git -C /linux-quick-setup push -u origin my-change
 ```
 
+Instead of passing the credentials through the environment, run the bundled
+helper inside the container:
+
+```bash
+setup-git-auth            # prompts for the GitHub username and token (hidden)
+setup-git-auth --check    # also verifies the token against the GitHub API
+```
+
+It writes `~/.git-credentials` (mode 600) via the git `store` helper and sets the
+global commit identity, so `git push` works for the rest of the session.
+
 `LQS_REF` (build arg) controls the ref the image clones and defaults to `main`.
 Build with `LQS_REF=$(git rev-parse HEAD)` (or your branch) so the baked checkout
 matches your tree instead of `main`.
@@ -191,6 +202,9 @@ Notes:
 - Runs as the non-root `dev` user with the code mounted at `/workspace`. Use
   `--build-arg DEV_UID=$(id -u) --build-arg DEV_GID=$(id -g)` when your host uid
   is not 1000, so files written to the mount are not root-owned.
+- `dev` has passwordless `sudo` (`/etc/sudoers.d/dev`), so runtime installs work:
+  `sudo apt-get update && sudo apt-get install -y <pkg>`. Those are ephemeral —
+  rebuild the image to keep a package.
 - The config repo is public by default and needs no token; a private one can be
   built with a BuildKit secret, and any token is never written into an image layer.
 - Runtime rehydration is pull-only; if the config repo's history diverged, the
