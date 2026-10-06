@@ -18,6 +18,12 @@ Includes:
 - nvim-tree (For files structure)
 - some other custom plugins/remaps for gly
 
+Requires a Nerd Font in the terminal: nvim-tree's file and folder icons come from
+`nvim-web-devicons` and use Nerd Font glyphs from the Private Use Area, so without one they
+render as tofu boxes. Install **Hack Nerd Font** on the machine and select it as the terminal
+font — fonts belong to the terminal, so the container cannot supply them. If an icon shows up
+as `_` instead of tofu, that is the tmux locale issue described in the tmux section.
+
 Helpful commands
 - :Lazy
 - :LspInstall
@@ -67,6 +73,10 @@ The config needs **tmux 3.5 or newer** and sets:
 
 Notes:
 
+- The image sets `LANG=C.UTF-8` and Compose pins the same value, because tmux only treats a client
+  as UTF-8 when `TMUX` is set or the locale contains `UTF-8`. Without a UTF-8 locale tmux replaces
+  non-ASCII glyphs that have no ACS mapping — rounded box corners (`╭ ╮ ╰ ╯`) and Nerd Font icons in
+  `pi` and `nvim-tree` — with `_`. Keep a UTF-8 locale if you override the environment.
 - The `xterm*`/`screen*`/`tmux*` patterns match the container tmux client's `TERM`.
   If the container is started from inside a **host** tmux, that host tmux must also
   enable extended keys (`set -s extended-keys on` on tmux 3.5+) or modified keys

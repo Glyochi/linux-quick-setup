@@ -38,6 +38,8 @@
 - Scripts may depend on tools like `sudo`, `wget`, `tar`, `tree`, `tput`, and `curl`.
 - The Docker image targets glibc Debian-based images on `amd64` only (no Alpine/musl, no arm64); `debian:bookworm-slim` is the default and only built/verified variant, while `BASE_IMAGE` can re-base onto other glibc images (unverified).
 - tmux is installed in the image only, from a pinned static build (`TMUX_VERSION`); the shipped `tmux/.tmux.conf` needs tmux 3.5+ (bookworm's apt tmux is 3.3a), and `install_things.sh` symlinks that config on hosts too.
+- The image sets `LANG=C.UTF-8` (Compose pins the same value). tmux only treats a client as UTF-8 when `TMUX` is set or the locale contains `UTF-8`; with a non-UTF-8 locale it replaces rounded box corners and Nerd Font icons with `_`.
+- nvim-tree / nvim-web-devicons icons are Nerd Font Private Use Area glyphs, so the machine running the terminal needs **Hack Nerd Font** installed and selected; the image cannot supply fonts. An icon shown as `_` is the locale issue above, tofu boxes mean the font is missing.
 - Pi extension versions are pinned in the config repo's `~/.pi/agent/settings.json`; the image seeds `~/.pi/agent/npm` from it read-only, and the container resets to the remote config when histories diverge.
 - The image's non-root `dev` user has passwordless `sudo` (`/etc/sudoers.d/dev`) for runtime package installs; those are ephemeral, and the reproducible path is to rebuild the image.
 

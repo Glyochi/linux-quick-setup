@@ -35,6 +35,11 @@ ARG LQS_REF=main
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+### UTF-8 locale. tmux only treats a client as UTF-8 when TMUX is set or LC_ALL/LC_CTYPE/LANG
+### contains "UTF-8"; otherwise it replaces rounded box corners and Nerd Font icons with "_".
+### C.utf8 is built into the image, so no locales package or locale-gen is needed.
+ENV LANG=C.UTF-8
+
 ### Base packages + pinned Node (official tarball, independent of the base's node)
 RUN set -eux; \
 	if [ "$(dpkg --print-architecture)" != "amd64" ]; then \

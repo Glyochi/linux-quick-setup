@@ -44,6 +44,9 @@ services:
     tty: true
     environment:
       TERM: ${TERM:-xterm-256color}
+      # Keep this a literal, never ${LANG:-...}: tmux only treats a client as UTF-8 when the locale
+      # contains "UTF-8", and a host LANG of C/POSIX would reintroduce the glyph mangling.
+      LANG: C.UTF-8
       # Optional: only needed for a private config repo; public repos fetch anonymously.
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       # Optional commit identity for pushes from /linux-quick-setup.
