@@ -195,6 +195,46 @@ docker compose pull && docker compose up --no-build
 The published image is built with `DEV_UID`/`DEV_GID` 1000; if your host uid
 differs, build locally or override the user at run time.
 
+## Quick launcher (`run_container.sh`)
+
+`run_container.sh` brings the container up in the background and drops you into
+a shell inside it:
+
+```bash
+bash run_container.sh                    # detached start + login shell
+bash run_container.sh nvim               # one-off command
+bash run_container.sh tmux new -As main  # persistent session inside
+```
+
+It is the equivalent of:
+
+```bash
+docker compose up -d
+docker compose exec dev bash -l
+```
+
+Because the container starts detached, losing the terminal connection (or
+closing the laptop) no longer stops it: tmux and any running `pi` session inside
+keep going, and re-running the script simply re-attaches. `docker-compose.yaml`
+stays the single source of truth, so `CODE_DIR`, `IMAGE`, `IMAGE_TAG`,
+`BASE_IMAGE`, `DEV_UID`/`DEV_GID`, `GITHUB_TOKEN`, and the `PI_SYNC_*` variables
+behave exactly as with `docker compose up`; `BUILD=1 bash run_container.sh` adds
+`--build`, and `SERVICE`/`COMPOSE_FILE` override the service and compose file.
+
+That shell comes from `docker compose exec`, which never goes through docker's
+detach-key proxy, so a lone **Ctrl+P** arrives intact (Pi's model cycling,
+readline history). Only attaching to the container's own stdio is affected —
+`docker compose up` without `-d`, or `docker attach` — because the CLI holds
+`Ctrl+P` as the first key of the default `ctrl-p,ctrl-q` detach sequence until
+the next key decides whether it is a detach. For those, set `"detachKeys"` in
+the docker CLI config (`~/.docker/config.json`) or pass `--detach-keys`:
+
+```bash
+docker run --rm -it --detach-keys="ctrl-^,ctrl-^" \
+  -v "$PWD:/workspace" \
+  ghcr.io/glyochi/linux-quick-setup:latest
+```
+
 ## Docker Compose
 
 `docker-compose.yaml` wraps the same image, mounting the code at `/workspace`

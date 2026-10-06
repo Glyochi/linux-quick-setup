@@ -15,6 +15,7 @@
 - `docker/entrypoint.sh`: container entrypoint; pull-only config refresh (fast-forward, else reset to the remote) then exec.
 - `docker/setup-git-auth.sh`: in-container helper that stores GitHub HTTPS credentials (`~/.git-credentials`) and the commit identity so pushes from `/linux-quick-setup` work.
 - `docker-compose.yaml`: brings up the image with the code mounted at `/workspace` and Pi state in named volumes.
+- `run_container.sh`: launcher for the Compose service; starts it detached (`docker compose up -d`, `BUILD=1` adds `--build`) and opens a shell with `docker compose exec dev`, so the container survives a lost connection and `Ctrl+P` reaches the container (exec bypasses docker's detach-key proxy).
 - `.github/workflows/build-image.yml`: manual workflow that builds and publishes the image to GHCR.
 - `docs/plans/**`: implementation plans and progress logs.
 - `utils.sh`: shared Bash helpers (array/string/file helpers, logging, parsing).
@@ -39,6 +40,7 @@
 - The Docker image targets glibc Debian-based images on `amd64` only (no Alpine/musl, no arm64); `debian:bookworm-slim` is the default and only built/verified variant, while `BASE_IMAGE` can re-base onto other glibc images (unverified).
 - tmux is installed in the image only, from a pinned static build (`TMUX_VERSION`); the shipped `tmux/.tmux.conf` needs tmux 3.5+ (bookworm's apt tmux is 3.3a), and `install_things.sh` symlinks that config on hosts too.
 - The image sets `LANG=C.UTF-8` (Compose pins the same value). tmux only treats a client as UTF-8 when `TMUX` is set or the locale contains `UTF-8`; with a non-UTF-8 locale it replaces rounded box corners and Nerd Font icons with `_`.
+- Docker's CLI escape proxy holds a lone `Ctrl+P` (default detach sequence `ctrl-p,ctrl-q`) before it reaches the container, so `Ctrl+P` looks dead when the container's own stdio is attached (`docker compose up` without `-d`, `docker run -it`, `docker attach`) — Pi's `app.model.cycleForward`, readline history. `docker compose exec` (what `run_container.sh` uses) is not affected; for attached sessions set `detachKeys` in the docker CLI config or pass `--detach-keys='ctrl-^,ctrl-^'`.
 - nvim-tree / nvim-web-devicons icons are Nerd Font Private Use Area glyphs, so the machine running the terminal needs **Hack Nerd Font** installed and selected; the image cannot supply fonts. An icon shown as `_` is the locale issue above, tofu boxes mean the font is missing.
 - Pi extension versions are pinned in the config repo's `~/.pi/agent/settings.json`; the image seeds `~/.pi/agent/npm` from it read-only, and the container resets to the remote config when histories diverge.
 - The image's non-root `dev` user has passwordless `sudo` (`/etc/sudoers.d/dev`) for runtime package installs; those are ephemeral, and the reproducible path is to rebuild the image.
@@ -57,6 +59,10 @@
     - `docker buildx build --build-arg PI_SYNC_REF=main -t linux-quick-setup:latest .`
   - Docker image run (mount the code repo at `/workspace`; add `-e GITHUB_TOKEN` only for a private config repo):
     - `docker run --rm -it -v "$PWD:/workspace" linux-quick-setup:latest`
+  - Launcher (starts the Compose service detached, then `docker compose exec dev bash -l`, so the container survives a lost connection and `Ctrl+P` arrives intact):
+    - `bash run_container.sh`
+    - `bash run_container.sh nvim`
+    - `BUILD=1 bash run_container.sh`
   - In-container repo for editing/pushing (nvim config symlinks point here):
     - `/linux-quick-setup` (git checkout; run `setup-git-auth` or set `GIT_USER_NAME`/`GIT_USER_EMAIL` and `GITHUB_TOKEN` to commit and push)
   - Docker Compose (build + interactive shell; add `-e GITHUB_TOKEN` only for a private config repo):
@@ -72,11 +78,11 @@
 
 ### Lint / Static Checks
 - Bash syntax check (all scripts):
-  - `bash -n back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh docker/entrypoint.sh docker/setup-git-auth.sh`
+  - `bash -n back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh run_container.sh docker/entrypoint.sh docker/setup-git-auth.sh`
 - Bash syntax check (single script):
   - `bash -n utils.sh`
 - ShellCheck (all scripts, when installed):
-  - `shellcheck back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh docker/entrypoint.sh docker/setup-git-auth.sh`
+  - `shellcheck back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh run_container.sh docker/entrypoint.sh docker/setup-git-auth.sh`
 - ShellCheck (single script):
   - `shellcheck install_things.sh`
 - Lua parse smoke check (single file):
