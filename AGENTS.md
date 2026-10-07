@@ -7,7 +7,6 @@
 
 ## Repository Map
 - `install_things.sh`: main installer flow (Neovim download/install + config linking).
-- `install_dependencies.sh`: installs external CLI dependencies (currently opencode CLI).
 - `install_pi.sh`: installs Pi and clones/updates the pi-config-sync repo at `~/.pi/agent` (no credentials for a public repo, token for a private one); Pi installs the packages declared in its settings.json on first run.
 - `remove_pi.sh`: teardown for Pi config and installs (the synced config remains on the remote).
 - `remove_things.sh`: teardown for Neovim config/data.
@@ -51,7 +50,6 @@
 - There is no compile/build pipeline.
 - Use script execution as the build/run workflow:
   - Full setup: `bash install_things.sh`
-  - Dependency setup only: `bash install_dependencies.sh`
   - Pi setup only: `bash install_pi.sh`
   - Teardown: `bash remove_things.sh`
   - Pi teardown: `bash remove_pi.sh`
@@ -78,11 +76,11 @@
 
 ### Lint / Static Checks
 - Bash syntax check (all scripts):
-  - `bash -n back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh run_container.sh docker/entrypoint.sh docker/setup-git-auth.sh`
+  - `bash -n back_bone.sh utils.sh install_things.sh install_pi.sh remove_pi.sh remove_things.sh run_container.sh docker/entrypoint.sh docker/setup-git-auth.sh`
 - Bash syntax check (single script):
   - `bash -n utils.sh`
 - ShellCheck (all scripts, when installed):
-  - `shellcheck back_bone.sh utils.sh install_things.sh install_dependencies.sh install_pi.sh remove_pi.sh remove_things.sh run_container.sh docker/entrypoint.sh docker/setup-git-auth.sh`
+  - `shellcheck back_bone.sh utils.sh install_things.sh install_pi.sh remove_pi.sh remove_things.sh run_container.sh docker/entrypoint.sh docker/setup-git-auth.sh`
 - ShellCheck (single script):
   - `shellcheck install_things.sh`
 - Lua parse smoke check (single file):

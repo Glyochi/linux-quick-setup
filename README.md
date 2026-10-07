@@ -55,6 +55,59 @@ force it.
 
 Skills live in `~/.pi/agent/skills/` and load in every project.
 
+## Neovim + pi
+
+Neovim talks to an **already running** pi session instead of spawning one. The
+[`carderne/pi-nvim`](https://github.com/carderne/pi-nvim) bridge, pinned to `v0.2.5`
+in `neovim/lua/gly_custom/plugins/pi.lua`, sends prompts and context from the editor into
+pi over a unix socket. Pi keeps its own full TUI in a tmux pane, so the session tree,
+model switching, and extensions behave exactly as they do in the terminal. The plugin's
+own `<leader>p` defaults are disabled so visual-mode paste from `remap.lua` still works.
+
+### Prerequisite (pi side)
+
+The socket server is a pi extension, so pi has to load it. It is declared in the Pi
+config repo rather than here, so it syncs to every machine:
+
+```sh
+pi install npm:pi-nvim@0.2.5
+```
+
+That records the package in `~/.pi/agent/settings.json` (the `pi-config-sync` checkout).
+Run `/reload` in pi, or restart it; `/pi-nvim-info` then reports the socket path.
+
+### Usage
+
+Start pi in a tmux pane and Neovim in another:
+
+```sh
+pi -c            # -c continues the last session for this directory
+```
+
+`pi -c` is what makes a reopened pane pick up the previous conversation — the plugin
+itself never starts pi.
+
+| Key | Mode | Action |
+| --- | --- | --- |
+| `<leader>kk` | n | `:PiSend` — prompt pi |
+| `<leader>ka` | n | `:PiSendBuffer` — send the whole buffer |
+| `<leader>kh` | x | `:PiSendSelection` — send the visual selection |
+| `<leader>kx` | n, x | `:Pi` — dialog for file / selection / buffer |
+| `<leader>kp` | n | `:PiPing` — check the socket |
+| `<leader>ks` | n | `:PiSessions` — list running pi sessions |
+
+If a send does not land, run `:PiPing` first: it separates "no pi session is
+reachable" from "the prompt was sent". `:PiSessions` shows which session the plugin
+picked — it prefers one whose working directory matches Neovim's, and falls back to the
+most recent socket otherwise.
+
+### Shared filesystem requirement
+
+The bridge finds sessions through `/tmp/pi-nvim-sockets`, so pi and Neovim must see the
+same `/tmp`. Both inside the container works, and both on the host works, but **pi on the
+host with Neovim inside the container will never connect**, because the socket manifests
+are not shared.
+
 # tmux
 
 The Docker image ships tmux preconfigured from `tmux/.tmux.conf`, which
@@ -307,7 +360,4 @@ Notes:
 
 # Other dependencies 
 - black (formating)
-- opencode
-    - for debugging `pgrep -af 'opencode.*--port`
-    - for cleaning `pgrep -f 'opencode.*--port' | xargs -r kill -9`
 
