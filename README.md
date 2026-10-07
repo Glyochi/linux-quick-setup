@@ -75,7 +75,24 @@ There are two ways to talk to pi from Neovim:
 The two paths meet in one rule: **when the pi split is visible, prompts go to it; otherwise
 they go to the running pi instance over the socket.** Hiding the split with `<leader>kk`
 keeps pi alive but routes sends over the socket, so you can keep prompting while the TUI is
-out of the way; the split stays hidden until you toggle it back.
+out of the way; the split stays hidden until you toggle it back. The split's pi loads the
+same synced config, so it registers its own socket too — a hidden-split send normally lands
+in that same session, and `:PiSessions` shows which session was picked.
+
+### How it is wired
+
+| File | Role |
+| --- | --- |
+| `neovim/lua/gly_custom/plugins/pi.lua` | Pins `carderne/pi-nvim` to `v0.2.5`, disables its default `<leader>p` maps, and owns the `<leader>k*` keymaps. |
+| `neovim/lua/gly_custom/pi_terminal.lua` | `<leader>kk`: opens pi in a right split as `pi --tui-mode regular -c`, hides it with `nvim_win_hide()` (pi keeps running), and restores the same conversation on the next press. `is_pi_terminal()` matches the `term://{cwd}//{pid}:{cmd}` buffer name so sends land in the split. |
+| `neovim/lua/gly_custom/pi_prompt.lua` | `<leader>kh` / `<leader>ka`: the reference/prompt float. `compose()` builds the message, `next_context()` cycles `selection` / `file`, and `deliver()` picks the transport. |
+| `neovim/init.lua` | Maps `<C-w>` in terminal mode to `<C-\><C-n>`, so one `<C-w>` leaves the pi split's terminal buffer for normal-mode navigation. |
+
+Behaviour worth knowing:
+
+- `--tui-mode regular` applies to the split only; the synced pi config keeps `fullscreen` for tmux.
+- `carderne/pi-nvim`'s setup enables `autoread` and, while a socket is reachable, runs `checktime` about once a second, so files pi edits reload in Neovim automatically.
+- Because the split is a `:terminal`, modified keys such as `Shift+Enter` reach pi only when Neovim and the outer terminal/multiplexer forward extended keys (the shipped tmux config enables that for tmux-hosted sessions). `Ctrl+J` always inserts a newline in pi.
 
 ### The prompt float
 
@@ -136,7 +153,8 @@ what makes a reopened tmux pane pick up the previous conversation.
 | `<leader>ks` | n | `:PiSessions` — list running pi sessions |
 
 The plugin's own `:Pi`, `:PiSend`, `:PiSendBuffer` and `:PiSendSelection` commands remain
-available; they are simply no longer bound to keys.
+available; they are simply no longer bound to keys. They still inline file/selection content
+— the float is the reference-only path.
 
 If a send does not land, run `:PiPing` first: it separates "no pi session is
 reachable" from "the prompt was sent". `:PiSessions` shows which session the plugin

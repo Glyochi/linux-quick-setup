@@ -19,10 +19,11 @@
 - `docs/plans/**`: implementation plans and progress logs.
 - `utils.sh`: shared Bash helpers (array/string/file helpers, logging, parsing).
 - `back_bone.sh`: terminal, color, menu, prompt, and print/log framework.
-- `neovim/init.lua`: Neovim entrypoint.
+- `neovim/init.lua`: Neovim entrypoint; maps `<C-w>` in terminal mode to leave the pi split's terminal buffer.
 - `neovim/lua/gly_custom/**`: custom Neovim modules and plugin specs.
+- `neovim/lua/gly_custom/plugins/pi.lua`: pins `carderne/pi-nvim` to `v0.2.5`, disables its default `<leader>p` maps, and owns the `<leader>k*` keymaps.
 - `neovim/lua/gly_custom/pi_terminal.lua`: hand-rolled pi terminal split (`<leader>kk`), with the pure `is_pi_terminal()` name predicate that routes sends into the visible split.
-- `neovim/lua/gly_custom/pi_prompt.lua`: stacked reference/prompt float (`<leader>kh`, `<leader>ka`) that sends relative `@path` references instead of inlined content, with pure `compose()` / `next_context()` helpers and a reference pane that flags unsaved or missing files; `deliver()` routes to a visible pi split, otherwise the socket.
+- `neovim/lua/gly_custom/pi_prompt.lua`: stacked reference/prompt float (`<leader>kh`, `<leader>ka`) that sends relative `@path` references instead of inlined content, with pure `compose()` / `next_context()` helpers and a reference pane that flags unsaved or missing files; `deliver()` routes to a visible pi split, otherwise the socket. The whole Neovim + pi integration (files, routing, keymaps, socket prerequisite) is documented in `README.md`.
 - `tmux/.tmux.conf`: tmux config, symlinked to `~/.tmux.conf` by `install_things.sh`; the tmux binary itself is installed by the `Dockerfile`.
 
 ## Rule Files (Cursor/Copilot)
