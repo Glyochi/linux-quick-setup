@@ -57,17 +57,53 @@ Skills live in `~/.pi/agent/skills/` and load in every project.
 
 ## Neovim + pi
 
-Neovim talks to an **already running** pi session instead of spawning one. The
-[`carderne/pi-nvim`](https://github.com/carderne/pi-nvim) bridge, pinned to `v0.2.5`
-in `neovim/lua/gly_custom/plugins/pi.lua`, sends prompts and context from the editor into
-pi over a unix socket. Pi keeps its own full TUI in a tmux pane, so the session tree,
-model switching, and extensions behave exactly as they do in the terminal. The plugin's
-own `<leader>p` defaults are disabled so visual-mode paste from `remap.lua` still works.
+There are two ways to talk to pi from Neovim:
 
-### Prerequisite (pi side)
+1. **The in-editor split** — `<leader>kk` runs pi's own TUI inside a right-hand vertical
+   split (`gly_custom/pi_terminal.lua`). Press it again to hide the window while pi keeps
+   running, and a third time to restore the same conversation. pi is started as
+   `pi --tui-mode regular -c`, so it writes to the split's normal scrollback instead of
+   taking over the alternate screen (Neovim scrolling keeps working) and continues the
+   last session for the directory.
+2. **The socket bridge** — the [`carderne/pi-nvim`](https://github.com/carderne/pi-nvim)
+   bridge, pinned to `v0.2.5` in `neovim/lua/gly_custom/plugins/pi.lua`, sends prompts and
+   context from the editor into an **already running** pi session over a unix socket. Pi
+   keeps its own full TUI in a tmux pane, so the session tree, model switching, and
+   extensions behave exactly as they do in the terminal. The plugin's own `<leader>p`
+   defaults are disabled so visual-mode paste from `remap.lua` still works.
+
+The two paths meet in one rule: **when the pi split is visible, prompts go to it; otherwise
+they go to the running pi instance over the socket.** Hiding the split with `<leader>kk`
+keeps pi alive but routes sends over the socket, so you can keep prompting while the TUI is
+out of the way; the split stays hidden until you toggle it back.
+
+### The prompt float
+
+`<leader>kh` (visual) and `<leader>ka` (normal) open a floating prompt box laid out
+context-left / prompt-right (`gly_custom/pi_prompt.lua`):
+
+- The **left pane** is read-only and shows the exact text that will be included, so you can
+  see what you are about to attach before sending.
+- The **right pane** is the prompt and grows as you type.
+- `<Tab>` cycles the context `selection → buffer → file` (skipping `selection` when there is
+  no visual selection); the left pane updates each time.
+- `<C-d>` / `<C-u>` scroll the context preview; focus stays in the prompt pane.
+- `<CR>` sends, `<C-j>` inserts a newline, and `<Esc>` / `<C-c>` cancel without sending.
+
+On send, a **visible** pi split receives the composed message directly (the plugin pastes
+it into the terminal buffer and submits). With no split open, or with the split hidden,
+the message is sent over the socket to the running pi instance and submitted there, and the
+split is left hidden.
+
+The composed message uses the same wording as the plugin's own `:PiSend*` commands, so
+`<leader>kh` / `<leader>ka` output is indistinguishable from a plugin send.
+
+### Prerequisite (socket bridge only)
 
 The socket server is a pi extension, so pi has to load it. It is declared in the Pi
-config repo rather than here, so it syncs to every machine:
+config repo rather than here, so it syncs to every machine. The `<leader>kk` split does
+not need it — pi runs inside Neovim and prompts are pasted straight into that job — but
+sends fall back to the socket whenever the split is not visible (absent or hidden):
 
 ```sh
 pi install npm:pi-nvim@0.2.5
@@ -78,23 +114,26 @@ Run `/reload` in pi, or restart it; `/pi-nvim-info` then reports the socket path
 
 ### Usage
 
-Start pi in a tmux pane and Neovim in another:
+Use `<leader>kk` for pi inside Neovim, or start pi in a tmux pane and Neovim in another
+for the socket bridge:
 
 ```sh
 pi -c            # -c continues the last session for this directory
 ```
 
-`pi -c` is what makes a reopened pane pick up the previous conversation — the plugin
-itself never starts pi.
+The split starts pi itself as `pi --tui-mode regular -c`; for the socket path `pi -c` is
+what makes a reopened tmux pane pick up the previous conversation.
 
 | Key | Mode | Action |
 | --- | --- | --- |
-| `<leader>kk` | n | `:PiSend` — prompt pi |
-| `<leader>ka` | n | `:PiSendBuffer` — send the whole buffer |
-| `<leader>kh` | x | `:PiSendSelection` — send the visual selection |
-| `<leader>kx` | n, x | `:Pi` — dialog for file / selection / buffer |
+| `<leader>kk` | n | Toggle the pi terminal split (hiding keeps pi running) |
+| `<leader>kh` | x | Prompt float, context defaulting to the visual selection |
+| `<leader>ka` | n | Prompt float, context defaulting to the whole buffer |
 | `<leader>kp` | n | `:PiPing` — check the socket |
 | `<leader>ks` | n | `:PiSessions` — list running pi sessions |
+
+The plugin's own `:Pi`, `:PiSend`, `:PiSendBuffer` and `:PiSendSelection` commands remain
+available; they are simply no longer bound to keys.
 
 If a send does not land, run `:PiPing` first: it separates "no pi session is
 reachable" from "the prompt was sent". `:PiSessions` shows which session the plugin

@@ -21,6 +21,8 @@
 - `back_bone.sh`: terminal, color, menu, prompt, and print/log framework.
 - `neovim/init.lua`: Neovim entrypoint.
 - `neovim/lua/gly_custom/**`: custom Neovim modules and plugin specs.
+- `neovim/lua/gly_custom/pi_terminal.lua`: hand-rolled pi terminal split (`<leader>kk`), with the pure `is_pi_terminal()` name predicate that routes sends into the visible split.
+- `neovim/lua/gly_custom/pi_prompt.lua`: context-left / prompt-right prompt float (`<leader>kh`, `<leader>ka`) with pure `compose()` / `next_context()` helpers; transport delegates to `require("pi-nvim").prompt()`.
 - `tmux/.tmux.conf`: tmux config, symlinked to `~/.tmux.conf` by `install_things.sh`; the tmux binary itself is installed by the `Dockerfile`.
 
 ## Rule Files (Cursor/Copilot)
@@ -85,6 +87,9 @@
   - `shellcheck install_things.sh`
 - Lua parse smoke check (single file):
   - `nvim --headless '+lua dofile("neovim/lua/gly_custom/plugins/mason.lua")' +qa`
+- Lua parse smoke check (pi modules):
+  - `nvim --headless '+lua dofile("neovim/lua/gly_custom/pi_terminal.lua")' +qa`
+  - `nvim --headless '+lua dofile("neovim/lua/gly_custom/pi_prompt.lua")' +qa`
 - Lua integration smoke check (entrypoint):
   - `nvim --headless '+lua dofile("neovim/init.lua")' +qa`
 - Dockerfile static check:
