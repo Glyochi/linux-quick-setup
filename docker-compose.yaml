@@ -8,6 +8,10 @@
 # override with IMAGE / IMAGE_TAG. A local build tags the result with that same
 # name, so pulling and building are interchangeable.
 #
+# CONTAINER_NAME names the container (default: linux-quick-setup). The Compose
+# project stays linux-quick-setup either way, so the named volumes below and the
+# Pi login/sessions in them are unaffected by the name.
+#
 # GITHUB_TOKEN is only needed when PI_SYNC_REPO points at a private repo.
 #
 # The code you edit is mounted from ${CODE_DIR:-.} at /workspace. The image also
@@ -20,6 +24,12 @@ name: linux-quick-setup
 
 services:
   dev:
+    # Optional: name the container yourself, e.g. CONTAINER_NAME=mytool. The name
+    # must be unique on the host (so no scaling), and changing it recreates the
+    # container once -- a live tmux/pi session inside the old one is lost, while
+    # the named volumes below survive. `docker compose run` one-offs are not
+    # affected: they ignore container_name.
+    container_name: ${CONTAINER_NAME:-linux-quick-setup}
     build:
       context: .
       dockerfile: Dockerfile

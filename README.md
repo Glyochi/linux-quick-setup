@@ -330,9 +330,19 @@ Because the container starts detached, losing the terminal connection (or
 closing the laptop) no longer stops it: tmux and any running `pi` session inside
 keep going, and re-running the script simply re-attaches. `docker-compose.yaml`
 stays the single source of truth, so `CODE_DIR`, `IMAGE`, `IMAGE_TAG`,
-`BASE_IMAGE`, `DEV_UID`/`DEV_GID`, `GITHUB_TOKEN`, and the `PI_SYNC_*` variables
-behave exactly as with `docker compose up`; `BUILD=1 bash run_container.sh` adds
-`--build`, and `SERVICE`/`COMPOSE_FILE` override the service and compose file.
+`BASE_IMAGE`, `DEV_UID`/`DEV_GID`, `GITHUB_TOKEN`, `CONTAINER_NAME`, and the
+`PI_SYNC_*` variables behave exactly as with `docker compose up`;
+`BUILD=1 bash run_container.sh` adds `--build`, and `SERVICE`/`COMPOSE_FILE`
+override the service and compose file.
+
+`CONTAINER_NAME=mytool bash run_container.sh` names the container `mytool`
+instead of the derived `linux-quick-setup-dev-1`. The Compose project stays
+`linux-quick-setup`, so the `pi-sessions`/`pi-state`/`pi-auth` volumes keep their
+names and the Pi login and session history are untouched. Two caveats: the name
+is fixed, so the service cannot be scaled and a second project started from this
+file collides on it (give each one its own `CONTAINER_NAME`); and changing the
+name recreates the container once, which ends a live tmux/`pi` session inside the
+old one — the named volumes survive that.
 
 That shell comes from `docker compose exec`, which never goes through docker's
 detach-key proxy, so a lone **Ctrl+P** arrives intact (Pi's model cycling,

@@ -23,7 +23,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # docker-compose.yaml stays the single source of truth for the container: the
 # mount, the named volumes and every supported env override (CODE_DIR, IMAGE,
 # IMAGE_TAG, BASE_IMAGE, DEV_UID/DEV_GID, GITHUB_TOKEN, PI_SYNC_*) are read by
-# compose itself.
+# compose itself. CONTAINER_NAME=mytool names the container without changing the
+# Compose project name, so the named volumes and the Pi login/sessions survive.
 COMPOSE_FILE="${COMPOSE_FILE:-${SCRIPT_DIR}/docker-compose.yaml}"
 SERVICE="${SERVICE:-dev}"
 # BUILD=1 builds the image locally before starting (compose --build).
