@@ -79,24 +79,27 @@ out of the way; the split stays hidden until you toggle it back.
 
 ### The prompt float
 
-`<leader>kh` (visual) and `<leader>ka` (normal) open a floating prompt box laid out
-context-left / prompt-right (`gly_custom/pi_prompt.lua`):
+`<leader>kh` (visual) and `<leader>ka` (normal) open a floating prompt box
+(`gly_custom/pi_prompt.lua`) stacked in one centered column:
 
-- The **left pane** is read-only and shows the exact text that will be included, so you can
-  see what you are about to attach before sending.
-- The **right pane** is the prompt and grows as you type.
-- `<Tab>` cycles the context `selection → buffer → file` (skipping `selection` when there is
-  no visual selection); the left pane updates each time.
-- `<C-d>` / `<C-u>` scroll the context preview; focus stays in the prompt pane.
+- The **reference** pane on top is read-only and shows only what is being referenced:
+  `@lua/a.lua` for a file, `@lua/a.lua lines 3-5` for a selection. When the buffer has
+  unsaved edits it adds `⚠ unsaved changes; pi will read the saved file`, and an unnamed
+  buffer shows `⚠ no file on disk; pi gets the prompt only`.
+- The **prompt** pane directly below is where you type; it grows as you add lines.
+- `<Tab>` cycles the reference between `selection` and `file` (staying on `file` when there
+  is no visual selection); the top pane updates each time.
 - `<CR>` sends, `<C-j>` inserts a newline, and `<Esc>` / `<C-c>` cancel without sending.
+
+The message carries a **relative `@path` reference instead of inlined content**, so pi reads
+the file from disk. That keeps prompts small, but unsaved buffer edits are not included: the
+reference pane flags them before you send. For the same reason the reference only resolves
+when pi shares Neovim's working directory.
 
 On send, a **visible** pi split receives the composed message directly (the plugin pastes
 it into the terminal buffer and submits). With no split open, or with the split hidden,
 the message is sent over the socket to the running pi instance and submitted there, and the
 split is left hidden.
-
-The composed message uses the same wording as the plugin's own `:PiSend*` commands, so
-`<leader>kh` / `<leader>ka` output is indistinguishable from a plugin send.
 
 ### Prerequisite (socket bridge only)
 
@@ -127,8 +130,8 @@ what makes a reopened tmux pane pick up the previous conversation.
 | Key | Mode | Action |
 | --- | --- | --- |
 | `<leader>kk` | n | Toggle the pi terminal split (hiding keeps pi running) |
-| `<leader>kh` | x | Prompt float, context defaulting to the visual selection |
-| `<leader>ka` | n | Prompt float, context defaulting to the whole buffer |
+| `<leader>kh` | x | Prompt float, reference defaulting to the visual selection |
+| `<leader>ka` | n | Prompt float, reference defaulting to the current file |
 | `<leader>kp` | n | `:PiPing` — check the socket |
 | `<leader>ks` | n | `:PiSessions` — list running pi sessions |
 

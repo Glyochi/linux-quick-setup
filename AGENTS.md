@@ -22,7 +22,7 @@
 - `neovim/init.lua`: Neovim entrypoint.
 - `neovim/lua/gly_custom/**`: custom Neovim modules and plugin specs.
 - `neovim/lua/gly_custom/pi_terminal.lua`: hand-rolled pi terminal split (`<leader>kk`), with the pure `is_pi_terminal()` name predicate that routes sends into the visible split.
-- `neovim/lua/gly_custom/pi_prompt.lua`: context-left / prompt-right prompt float (`<leader>kh`, `<leader>ka`) with pure `compose()` / `next_context()` helpers; transport delegates to `require("pi-nvim").prompt()`.
+- `neovim/lua/gly_custom/pi_prompt.lua`: stacked reference/prompt float (`<leader>kh`, `<leader>ka`) that sends relative `@path` references instead of inlined content, with pure `compose()` / `next_context()` helpers and a reference pane that flags unsaved or missing files; `deliver()` routes to a visible pi split, otherwise the socket.
 - `tmux/.tmux.conf`: tmux config, symlinked to `~/.tmux.conf` by `install_things.sh`; the tmux binary itself is installed by the `Dockerfile`.
 
 ## Rule Files (Cursor/Copilot)
