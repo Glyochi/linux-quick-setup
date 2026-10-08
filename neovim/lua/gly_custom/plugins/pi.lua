@@ -8,7 +8,7 @@ return {
 
     vim.keymap.set("n", "<leader>kk", function()
       require("gly_custom.pi_terminal").toggle()
-    end, { desc = "Toggle pi terminal split" })
+    end, { desc = "Toggle pi mirror split" })
     vim.keymap.set("n", "<leader>ka", function()
       require("gly_custom.pi_prompt").open({ default_context = "file" })
     end, { desc = "Ask pi about current file" })

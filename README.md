@@ -57,42 +57,55 @@ Skills live in `~/.pi/agent/skills/` and load in every project.
 
 ## Neovim + pi
 
-There are two ways to talk to pi from Neovim:
+There is **one** pi process — running in its own tmux session — and two ways to reach it from
+Neovim:
 
-1. **The in-editor split** — `<leader>kk` runs pi's own TUI inside a right-hand vertical
-   split (`gly_custom/pi_terminal.lua`). Press it again to hide the window while pi keeps
-   running, and a third time to restore the same conversation. pi is started as
-   `pi --tui-mode regular -c`, so it writes to the split's normal scrollback instead of
-   taking over the alternate screen (Neovim scrolling keeps working) and continues the
-   last session for the directory.
+1. **The mirror split** — `<leader>kk` attaches a right-hand vertical split to the tmux pane
+   running pi as a second tmux client (`gly_custom/pi_terminal.lua`). Because it is the same
+   process, the split shows the live transcript: whatever pi does appears in the split and
+   the tmux window at once, and you can type in either. Press it again to hide the split
+   while pi keeps running, and a third time to restore it.
+   The pane is chosen by directory, and only by directory: the pi whose working directory is
+   Neovim's working directory (`:pwd`, so `:cd` moves the match), which is the pi for this
+   project. If Neovim's directory is unusable — it was deleted while Neovim was running — the
+   mirror says so and tells you which `:cd` fixes it. If two pi panes share that directory,
+   `<leader>kk` opens nothing and lists them so you can close one; if none does, it lists any
+   pi panes found elsewhere and the command to start one here. The mirror only sees pi **in a
+   tmux pane**: a pi started outside tmux has no pane for the split to attach to, so
+   `<leader>kk` reports that no pi pane was found in this directory.
 2. **The socket bridge** — the [`carderne/pi-nvim`](https://github.com/carderne/pi-nvim)
    bridge, pinned to `v0.2.5` in `neovim/lua/gly_custom/plugins/pi.lua`, sends prompts and
-   context from the editor into an **already running** pi session over a unix socket. Pi
-   keeps its own full TUI in a tmux pane, so the session tree, model switching, and
-   extensions behave exactly as they do in the terminal. The plugin's own `<leader>p`
-   defaults are disabled so visual-mode paste from `remap.lua` still works.
+   context from the editor into that **already running** pi session over a unix socket. Pi
+   keeps its own full TUI in tmux, so the session tree, model switching, and extensions
+   behave exactly as they do in the terminal. The plugin's own `<leader>p` defaults are
+   disabled so visual-mode paste from `remap.lua` still works.
 
-The two paths meet in one rule: **when the pi split is visible, prompts go to it; otherwise
-they go to the running pi instance over the socket.** Hiding the split with `<leader>kk`
-keeps pi alive but routes sends over the socket, so you can keep prompting while the TUI is
-out of the way; the split stays hidden until you toggle it back. The split's pi loads the
-same synced config, so it registers its own socket too — a hidden-split send normally lands
-in that same session, and `:PiSessions` shows which session was picked.
+The two paths meet in one rule: **every prompt from Neovim goes over the socket to the
+tmux-hosted pi.** Nothing is pasted into a terminal buffer, so the prompt always lands in
+the one process that owns the session. That is what makes an `ask_user_question`
+questionnaire appear in the tmux window — where it can be answered full screen — and in the
+mirror split at the same time. A second `pi -c` process cannot do this: pi has no
+cross-process reload or attach, each process keeps its own in-memory transcript, and the
+questionnaire is rendered in the process that raised it, so the other window would only ever
+show a stale copy (and a stale writer appends to its own last entry, branching the session
+tree).
 
 ### How it is wired
 
 | File | Role |
 | --- | --- |
 | `neovim/lua/gly_custom/plugins/pi.lua` | Pins `carderne/pi-nvim` to `v0.2.5`, disables its default `<leader>p` maps, and owns the `<leader>k*` keymaps. |
-| `neovim/lua/gly_custom/pi_terminal.lua` | `<leader>kk`: opens pi in a right split as `pi --tui-mode regular -c`, hides it with `nvim_win_hide()` (pi keeps running), and restores the same conversation on the next press. `is_pi_terminal()` matches the `term://{cwd}//{pid}:{cmd}` buffer name so sends land in the split. |
-| `neovim/lua/gly_custom/pi_prompt.lua` | `<leader>kh` / `<leader>ka`: the reference/prompt float. `compose()` builds the message, `next_context()` cycles `selection` / `file`, and `deliver()` picks the transport. |
+| `neovim/lua/gly_custom/pi_terminal.lua` | `<leader>kk`: resolves the pi pane whose `pane_current_path` is Neovim's `:pwd` (tmux panes only), groups a private `pi-mirror` session with that pane's session, and attaches the split with `tmux attach-session -f ignore-size -t pi-mirror`; hides it with `nvim_win_hide()` (pi keeps running) and restores the same view on the next press. `is_pi_terminal()` matches the `term://{cwd}//{pid}:{cmd}` buffer name of that attach command, `toggle()` notifies instead of opening anything when the directory is ambiguous or holds no pi pane, and a `TermClose` autocmd removes the mirror session when the split closes. |
+| `neovim/lua/gly_custom/pi_prompt.lua` | `<leader>kh` / `<leader>ka`: the reference/prompt float. `compose()` builds the message, `next_context()` cycles `selection` / `file`, and `deliver()` always sends it over the pi-nvim socket. |
 | `neovim/init.lua` | Maps `<C-w>` in terminal mode to `<C-\><C-n>`, so one `<C-w>` leaves the pi split's terminal buffer for normal-mode navigation. |
 
 Behaviour worth knowing:
 
-- `--tui-mode regular` applies to the split only; the synced pi config keeps `fullscreen` for tmux.
+- `-f ignore-size` on the mirror client keeps the split from resizing the window the fullscreen tmux client is using, so the split shows the top-left crop when it is narrower. Both clients are on the same server, so the prefix is shared: copy-mode in the split is `C-b C-b [` while Neovim runs inside tmux, and a plain `C-b [` when it does not.
+- The mirror lives in its own `pi-mirror` session, grouped with the pi session: it shares the windows but keeps an independent current window, so attaching the split never moves your outer client, and closing the split removes the mirror session again. Selecting the pi pane moves the shared window's active pane, which only matters when that window holds several panes.
+- The tmux-hosted pi keeps the synced `fullscreen` TUI mode from `~/.pi/agent/settings.json`; the mirror shows that same screen.
 - `carderne/pi-nvim`'s setup enables `autoread` and, while a socket is reachable, runs `checktime` about once a second, so files pi edits reload in Neovim automatically.
-- Because the split is a `:terminal`, modified keys such as `Shift+Enter` reach pi only when Neovim and the outer terminal/multiplexer forward extended keys (the shipped tmux config enables that for tmux-hosted sessions). `Ctrl+J` always inserts a newline in pi.
+- Typing in the split goes to the same pi, so modified keys such as `Shift+Enter` reach it only when Neovim and the outer terminal/multiplexer forward extended keys (the shipped tmux config enables that for tmux-hosted sessions). `Ctrl+J` always inserts a newline in pi.
 
 ### The prompt float
 
@@ -113,17 +126,16 @@ the file from disk. That keeps prompts small, but unsaved buffer edits are not i
 reference pane flags them before you send. For the same reason the reference only resolves
 when pi shares Neovim's working directory.
 
-On send, a **visible** pi split receives the composed message directly (the plugin pastes
-it into the terminal buffer and submits). With no split open, or with the split hidden,
-the message is sent over the socket to the running pi instance and submitted there, and the
-split is left hidden.
+On send, the message goes over the pi-nvim socket to the tmux-hosted pi and is submitted
+there. Nothing is pasted into the mirror split, so the prompt, the answer, and any
+questionnaire all belong to that one session; the split shows them because it is a view of
+the same process.
 
-### Prerequisite (socket bridge only)
+### Prerequisite
 
 The socket server is a pi extension, so pi has to load it. It is declared in the Pi
-config repo rather than here, so it syncs to every machine. The `<leader>kk` split does
-not need it — pi runs inside Neovim and prompts are pasted straight into that job — but
-sends fall back to the socket whenever the split is not visible (absent or hidden):
+config repo rather than here, so it syncs to every machine. Every prompt from Neovim
+travels over this socket, so without it the float cannot send anything:
 
 ```sh
 pi install npm:pi-nvim@0.2.5
@@ -134,19 +146,19 @@ Run `/reload` in pi, or restart it; `/pi-nvim-info` then reports the socket path
 
 ### Usage
 
-Use `<leader>kk` for pi inside Neovim, or start pi in a tmux pane and Neovim in another
-for the socket bridge:
+Use `<leader>kk` for the split view of pi, and `<leader>ka` / `<leader>kh` to send from
+Neovim. pi itself runs in tmux, so it keeps going when Neovim closes:
 
 ```sh
-pi -c            # -c continues the last session for this directory
+tmux new-session -A -s pi 'pi -c'   # -c continues the last session for this directory
 ```
 
-The split starts pi itself as `pi --tui-mode regular -c`; for the socket path `pi -c` is
-what makes a reopened tmux pane pick up the previous conversation.
+Start pi from the directory you work in: the mirror finds it by that directory, so the
+session name is only a label.
 
 | Key | Mode | Action |
 | --- | --- | --- |
-| `<leader>kk` | n | Toggle the pi terminal split (hiding keeps pi running) |
+| `<leader>kk` | n | Toggle the pi mirror split (hiding keeps pi running) |
 | `<leader>kh` | x | Prompt float, reference defaulting to the visual selection |
 | `<leader>ka` | n | Prompt float, reference defaulting to the current file |
 | `<leader>kp` | n | `:PiPing` — check the socket |

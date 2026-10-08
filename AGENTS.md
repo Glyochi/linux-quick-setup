@@ -22,8 +22,8 @@
 - `neovim/init.lua`: Neovim entrypoint; maps `<C-w>` in terminal mode to leave the pi split's terminal buffer.
 - `neovim/lua/gly_custom/**`: custom Neovim modules and plugin specs.
 - `neovim/lua/gly_custom/plugins/pi.lua`: pins `carderne/pi-nvim` to `v0.2.5`, disables its default `<leader>p` maps, and owns the `<leader>k*` keymaps.
-- `neovim/lua/gly_custom/pi_terminal.lua`: hand-rolled pi terminal split (`<leader>kk`), with the pure `is_pi_terminal()` name predicate that routes sends into the visible split.
-- `neovim/lua/gly_custom/pi_prompt.lua`: stacked reference/prompt float (`<leader>kh`, `<leader>ka`) that sends relative `@path` references instead of inlined content, with pure `compose()` / `next_context()` helpers and a reference pane that flags unsaved or missing files; `deliver()` routes to a visible pi split, otherwise the socket. The whole Neovim + pi integration (files, routing, keymaps, socket prerequisite) is documented in `README.md`.
+- `neovim/lua/gly_custom/pi_terminal.lua`: `<leader>kk` mirror split — resolves the tmux pane whose `pane_current_path` matches Neovim's `:pwd` (directory-only, tmux panes only; an ambiguous directory or one without a pi pane is reported, never guessed), groups a private `pi-mirror` session with that pane's session, attaches it with `-f ignore-size`, hides/restores it, and removes the mirror session on `TermClose`; the pure `is_pi_terminal()` name predicate matches the attach command's terminal buffer.
+- `neovim/lua/gly_custom/pi_prompt.lua`: stacked reference/prompt float (`<leader>kh`, `<leader>ka`) that sends relative `@path` references instead of inlined content, with pure `compose()` / `next_context()` helpers and a reference pane that flags unsaved or missing files; `deliver()` always sends over the pi-nvim socket to the tmux-hosted pi, so a questionnaire is raised in that one process. The whole Neovim + pi integration (files, routing, keymaps, socket prerequisite) is documented in `README.md`.
 - `tmux/.tmux.conf`: tmux config, symlinked to `~/.tmux.conf` by `install_things.sh`; the tmux binary itself is installed by the `Dockerfile`.
 
 ## Rule Files (Cursor/Copilot)

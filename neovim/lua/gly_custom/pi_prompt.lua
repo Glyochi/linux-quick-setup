@@ -4,9 +4,9 @@
 -- pane on top showing the `@<relfile>` reference, and the `prompt` pane directly
 -- below it. Messages carry references, not content, so pi reads the file from
 -- disk; when the buffer is modified the reference pane adds an unsaved-changes
--- notice instead of a transient notification. A visible pi split receives the
--- message directly; with no split, or a hidden one, it goes over the plugin's
--- socket path (see `M.deliver`).
+-- notice instead of a transient notification. Every send goes over the plugin's
+-- socket path to the pi running in tmux (see `M.deliver`), so a questionnaire pi
+-- raises is always raised in that one process.
 local M = {}
 
 local CONTEXTS = { "selection", "file" }
@@ -55,10 +55,11 @@ end
 
 --- Deliver a composed message.
 ---
---- A visible pi split receives it directly (the plugin pastes into the terminal
---- buffer). When no split is open, or the split is hidden, the message goes over
---- the plugin's socket path to the running pi instance and is submitted there;
---- a hidden split stays hidden. Transport itself stays in the plugin.
+--- Always over the pi-nvim socket, to the single pi running in tmux. That keeps
+--- the prompt in the process that owns the session, so an `ask_user_question`
+--- questionnaire is raised there and stays answerable in the tmux window, while
+--- the mirror split shows it as part of the same transcript. Nothing is pasted
+--- into a terminal buffer.
 --- @param message string
 function M.deliver(message)
   local ok, pi = pcall(require, "pi-nvim")
@@ -67,23 +68,22 @@ function M.deliver(message)
     return
   end
 
-  local term_buf, term_win = require("gly_custom.pi_terminal").find()
-  if term_buf and not term_win then
-    -- The split exists but is hidden: keep it hidden and use the socket.
-    pi.send_raw({ type = "prompt", message = message }, function(err, resp)
-      if err then return end
-      if resp and resp.ok then
-        vim.notify("Sent to pi", vim.log.levels.INFO)
-      else
-        vim.notify("pi error: " .. (resp and resp.error or "unknown"), vim.log.levels.ERROR)
-      end
-    end)
+  if not pi.get_socket_path() then
+    vim.notify(
+      "No pi session is reachable. Start pi in tmux: tmux new-session -A -s pi 'pi -c'",
+      vim.log.levels.ERROR
+    )
     return
   end
 
-  -- No split, or a visible one: the plugin picks the terminal buffer when it is
-  -- visible and the socket otherwise.
-  pi.prompt(message)
+  pi.send_raw({ type = "prompt", message = message }, function(err, resp)
+    if err then return end
+    if resp and resp.ok then
+      vim.notify("Sent to pi", vim.log.levels.INFO)
+    else
+      vim.notify("pi error: " .. (resp and resp.error or "unknown"), vim.log.levels.ERROR)
+    end
+  end)
 end
 
 --- The reference the current context contributes. Pure.
