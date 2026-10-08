@@ -39,7 +39,8 @@ services:
       args:
         BASE_IMAGE: ${BASE_IMAGE:-debian:bookworm-slim}
         # tmux version shipped in the image (static build; needs >= 3.5).
-        TMUX_VERSION: ${TMUX_VERSION:-3.7c}
+        # 3.6b, not 3.7: 3.7 broke `choose-tree` with session groups (see Dockerfile).
+        TMUX_VERSION: ${TMUX_VERSION:-3.6b}
         PI_SYNC_REF: ${PI_SYNC_REF:-main}
         # Ref cloned into /linux-quick-setup. Use $(git rev-parse HEAD) for a
         # clean checkout that matches the local tree.

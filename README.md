@@ -95,14 +95,15 @@ tree).
 | File | Role |
 | --- | --- |
 | `neovim/lua/gly_custom/plugins/pi.lua` | Pins `carderne/pi-nvim` to `v0.2.5`, disables its default `<leader>p` maps, and owns the `<leader>k*` keymaps. |
-| `neovim/lua/gly_custom/pi_terminal.lua` | `<leader>kk`: resolves the pi pane whose `pane_current_path` is Neovim's `:pwd` (tmux panes only), groups a private `pi-mirror` session with that pane's session, and attaches the split with `tmux attach-session -f ignore-size -t pi-mirror`; hides it with `nvim_win_hide()` (pi keeps running) and restores the same view on the next press. `is_pi_terminal()` matches the `term://{cwd}//{pid}:{cmd}` buffer name of that attach command, `toggle()` notifies instead of opening anything when the directory is ambiguous or holds no pi pane, and a `TermClose` autocmd removes the mirror session when the split closes. |
+| `neovim/lua/gly_custom/pi_terminal.lua` | `<leader>kk`: resolves the **interactive TUI** pi pane whose `pane_current_path` is Neovim's `:pwd` (tmux panes only; headless pi panes are ignored), groups a private `pi-mirror-<pane id>` session with that pane's session, and attaches the split with `tmux attach-session -f ignore-size -t pi-mirror-<pane id>`; hides it with `nvim_win_hide()` (pi keeps running) and restores the same view on the next press. `is_pi_terminal()` matches the `term://{cwd}//{pid}:{cmd}` buffer name of that attach command, `toggle()` notifies instead of opening anything when the directory is ambiguous or holds no pi pane, and a `TermClose` autocmd removes the mirror session when the split closes. |
 | `neovim/lua/gly_custom/pi_prompt.lua` | `<leader>kh` / `<leader>ka`: the reference/prompt float. `compose()` builds the message, `next_context()` cycles `selection` / `file`, and `deliver()` always sends it over the pi-nvim socket. |
 | `neovim/init.lua` | Maps `<C-w>` in terminal mode to `<C-\><C-n>`, so one `<C-w>` leaves the pi split's terminal buffer for normal-mode navigation. |
 
 Behaviour worth knowing:
 
 - `-f ignore-size` on the mirror client keeps the split from resizing the window the fullscreen tmux client is using, so the split shows the top-left crop when it is narrower. Both clients are on the same server, so the prefix is shared: copy-mode in the split is `C-b C-b [` while Neovim runs inside tmux, and a plain `C-b [` when it does not.
-- The mirror lives in its own `pi-mirror` session, grouped with the pi session: it shares the windows but keeps an independent current window, so attaching the split never moves your outer client, and closing the split removes the mirror session again. Selecting the pi pane moves the shared window's active pane, which only matters when that window holds several panes.
+- The mirror lives in its own `pi-mirror-<pane id>` session, grouped with the pi session: it shares the windows but keeps an independent current window, so attaching the split never moves your outer client, and closing the split removes the mirror session again. Selecting the pi pane moves the shared window's active pane, which only matters when that window holds several panes. The name is per pi pane, so **two Neovim instances in different directories each get their own mirror**; matching uses tmux window/pane ids (not `0.0` indices, which every session shares), so a second Neovim cannot latch onto the first one's pi.
+- Only the **interactive pi TUI** is a mirror target. A headless pi run in a pane — a subagent (`--mode rpc`), or `pi -p`/`--print` — is ignored, so it is neither mirrored nor counted as a second pi in the directory. Detection is tmux's `#{alternate_on}` (a full-screen TUI owns the alternate screen), plus pi's terminal title for the `--tui-mode regular` case.
 - The tmux-hosted pi keeps the synced `fullscreen` TUI mode from `~/.pi/agent/settings.json`; the mirror shows that same screen.
 - `carderne/pi-nvim`'s setup enables `autoread` and, while a socket is reachable, runs `checktime` about once a second, so files pi edits reload in Neovim automatically.
 - Typing in the split goes to the same pi, so modified keys such as `Shift+Enter` reach it only when Neovim and the outer terminal/multiplexer forward extended keys (the shipped tmux config enables that for tmux-hosted sessions). `Ctrl+J` always inserts a newline in pi.
@@ -213,6 +214,12 @@ Notes:
   `~/.tmux.conf`. The symlink is inert when tmux is not installed.
 - The image installs the pinned static build (`TMUX_VERSION` in the table below)
   because Debian bookworm's tmux 3.3a predates both options.
+- The pin is **3.6b, not 3.7.x**: tmux 3.7 reworked session sorting and broke
+  `choose-tree` (and so `C-b w` / `C-b s`) whenever a session group exists — the
+  tree comes up blank and the first key closes it. The pi mirror split relies on a
+  session group, so it triggered this on every open. Upstream fixed it in 3.8
+  (tmux commit `a6a06c5a`), but `tmux-builds` has no 3.8 static release yet; move
+  the pin to 3.8 once it does.
 
 # Docker
 
@@ -417,7 +424,7 @@ Override any pin with `--build-arg`:
 | --- | --- | --- |
 | `BASE_IMAGE` | `debian:bookworm-slim` | Base image to build on (Debian by default) |
 | `NEOVIM_VERSION` | `v0.11.1` | Neovim release |
-| `TMUX_VERSION` | `3.7c` | tmux static build from `tmux-builds` (image only) |
+| `TMUX_VERSION` | `3.6b` | tmux static build from `tmux-builds` (image only; see the tmux note) |
 | `NODE_VERSION` | `22.23.3` | Node.js (official tarball) |
 | `PI_VERSION` | `1.0.0` | `@earendil-works/pi-coding-agent` |
 | `BASEDPYRIGHT_VERSION` | `1.40.2` | basedpyright |

@@ -19,7 +19,7 @@ ARG BASE_IMAGE=debian:bookworm-slim
 FROM ${BASE_IMAGE}
 
 ARG NEOVIM_VERSION=v0.11.1
-ARG TMUX_VERSION=3.7c
+ARG TMUX_VERSION=3.6b
 ARG NODE_VERSION=22.23.3
 ARG PI_VERSION=1.0.0
 ARG BASEDPYRIGHT_VERSION=1.40.2
@@ -65,6 +65,10 @@ ENV PATH="/opt/node/bin:${PATH}"
 ### Pinned tmux. Debian bookworm ships 3.3a, which predates the extkeys terminal
 ### feature and extended-keys-format (tmux 3.5), so install the upstream static
 ### release instead: a single fully static binary, amd64 only, no runtime deps.
+### Stay on 3.6b: the 3.7 sorting rework broke `choose-tree` when a session group
+### exists (it renders an empty screen and exits on the first key), which is how
+### the pi mirror split attaches. Upstream fixed it in 3.8, but tmux-builds has no
+### 3.8 static build yet; bump this pin once it does.
 RUN set -eux; \
 	curl -fsSL "https://github.com/tmux/tmux-builds/releases/download/v${TMUX_VERSION}/tmux-${TMUX_VERSION}-linux-x86_64.tar.gz" \
 		-o /tmp/tmux.tar.gz; \
