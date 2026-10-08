@@ -1,20 +1,25 @@
 #!/usr/bin/env bash
-# Container entrypoint: optionally refresh the baked Pi config, then run the
-# requested command. This is pull-only: it never commits or pushes. If the remote
-# history diverged it resets to the remote, so container-local config changes
-# stay ephemeral.
+# Container entrypoint: optionally refresh the baked Pi config and the baked
+# /linux-quick-setup checkout, then run the requested command. This is pull-only:
+# it never commits or pushes. If a remote history diverged it resets to the
+# remote, so container-local changes stay ephemeral -- including unpushed edits
+# in /linux-quick-setup.
 #
-#   PI_SYNC_REHYDRATE=0     skip the network refresh entirely (use the baked ref)
+#   PI_SYNC_REHYDRATE=0     skip the Pi config refresh (use the baked ref)
+#   LQS_SYNC_REHYDRATE=0    skip the /linux-quick-setup refresh
 #   GITHUB_TOKEN            optional classic `repo` token; also enables pushes
 #   GIT_USER_NAME/EMAIL     optional commit identity for /linux-quick-setup
-#   PI_SYNC_BRANCH          branch to fast-forward to (default: main)
-#   PI_SYNC_FETCH_TIMEOUT   fetch timeout in seconds (default: 20)
+#   PI_SYNC_BRANCH          Pi config branch to fast-forward to (default: main)
+#   LQS_SYNC_BRANCH         /linux-quick-setup branch to follow (default: main)
+#   PI_SYNC_FETCH_TIMEOUT   fetch timeout in seconds, for both (default: 20)
 set -Eeuo pipefail
 
 PI_AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 PI_SYNC_BRANCH="${PI_SYNC_BRANCH:-main}"
 PI_SYNC_REHYDRATE="${PI_SYNC_REHYDRATE:-1}"
 PI_SYNC_FETCH_TIMEOUT="${PI_SYNC_FETCH_TIMEOUT:-20}"
+LQS_SYNC_BRANCH="${LQS_SYNC_BRANCH:-main}"
+LQS_SYNC_REHYDRATE="${LQS_SYNC_REHYDRATE:-1}"
 
 log(){ printf '[entrypoint] %s\n' "$*" >&2; }
 
@@ -86,6 +91,33 @@ configure_git_credentials(){
 	chmod 600 "$credentials_file"
 }
 
+# Move <dir> onto origin/<branch>: fast-forward when possible, else reset to the
+# fetched commit (the remote is authoritative). Pull-only: never commits or
+# pushes. <label> names the checkout in the log lines.
+sync_checkout(){
+	local dir="$1" branch="$2" label="$3"
+
+	log "${label}: fetching origin/${branch}..."
+	if ! GIT_TERMINAL_PROMPT=0 timeout "${PI_SYNC_FETCH_TIMEOUT}" \
+		git -C "$dir" fetch --quiet origin "$branch"; then
+		log "WARNING: ${label}: fetch failed or timed out; keeping the baked checkout."
+		return 0
+	fi
+
+	if ! GIT_TERMINAL_PROMPT=0 git -C "$dir" merge --ff-only FETCH_HEAD; then
+		# History diverged (e.g. the branch was rewritten) or local changes are
+		# in the way. The remote is authoritative, so take it.
+		log "WARNING: ${label}: cannot fast-forward; resetting to origin/${branch}."
+		if ! GIT_TERMINAL_PROMPT=0 git -C "$dir" reset --hard FETCH_HEAD; then
+			log "WARNING: ${label}: reset failed; keeping the baked checkout."
+			return 0
+		fi
+	fi
+
+	log "${label}: updated to $(git -C "$dir" rev-parse --short HEAD)."
+	return 0
+}
+
 rehydrate(){
 	if [[ "$PI_SYNC_REHYDRATE" == "0" ]]; then
 		log "Rehydration disabled (PI_SYNC_REHYDRATE=0); using the baked config."
@@ -96,35 +128,40 @@ rehydrate(){
 		return 0
 	fi
 
-	if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-		configure_git_credentials
-	else
-		log "GITHUB_TOKEN is not set; fetching '${PI_SYNC_BRANCH}' anonymously."
-	fi
+	sync_checkout "${PI_AGENT_DIR}" "${PI_SYNC_BRANCH}" "pi config"
+}
 
-	log "Fetching origin/${PI_SYNC_BRANCH}..."
-	if ! GIT_TERMINAL_PROMPT=0 timeout "${PI_SYNC_FETCH_TIMEOUT}" \
-		git -C "${PI_AGENT_DIR}" fetch --quiet origin "${PI_SYNC_BRANCH}"; then
-		log "WARNING: fetch failed or timed out; keeping the baked config."
+# The baked /linux-quick-setup checkout is the live Neovim and tmux config, so it
+# follows origin/<LQS_SYNC_BRANCH> the same way: a restart picks up the newest
+# main. Unpushed edits in it are ephemeral -- push them, or set
+# LQS_SYNC_REHYDRATE=0 to keep the checkout as it is.
+rehydrate_lqs(){
+	if [[ "$LQS_SYNC_REHYDRATE" == "0" ]]; then
+		log "linux-quick-setup refresh disabled (LQS_SYNC_REHYDRATE=0); using the baked checkout."
+		return 0
+	fi
+	if [[ ! -d "/linux-quick-setup/.git" ]]; then
+		log "No baked checkout at '/linux-quick-setup'; skipping its refresh."
 		return 0
 	fi
 
-	if ! GIT_TERMINAL_PROMPT=0 git -C "${PI_AGENT_DIR}" merge --ff-only FETCH_HEAD; then
-		# History diverged (e.g. the branch was rewritten). The remote is
-		# authoritative, so discard the baked/local state and take it.
-		log "WARNING: cannot fast-forward; resetting the baked config to origin/${PI_SYNC_BRANCH}."
-		if ! GIT_TERMINAL_PROMPT=0 git -C "${PI_AGENT_DIR}" reset --hard FETCH_HEAD; then
-			log "WARNING: reset failed; keeping the baked config."
-			return 0
-		fi
-	fi
-
-	log "Config updated to $(git -C "${PI_AGENT_DIR}" rev-parse --short HEAD)."
-	return 0
+	sync_checkout "/linux-quick-setup" "${LQS_SYNC_BRANCH}" "linux-quick-setup"
 }
 
-prepare_auth_storage
-prepare_git
-log_checkout_state
-rehydrate
-exec "$@"
+# Sourced by tests, executed in the image: only run the body when this file is
+# the entrypoint itself.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	prepare_auth_storage
+	prepare_git
+	# Configured once for both checkouts, so a private remote still authenticates
+	# when one of the refreshes is disabled.
+	if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+		configure_git_credentials
+	else
+		log "GITHUB_TOKEN is not set; fetching anonymously."
+	fi
+	rehydrate
+	rehydrate_lqs
+	log_checkout_state
+	exec "$@"
+fi

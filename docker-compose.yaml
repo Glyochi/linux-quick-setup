@@ -16,9 +16,12 @@
 #
 # The code you edit is mounted from ${CODE_DIR:-.} at /workspace. The image also
 # ships a linux-quick-setup checkout at /linux-quick-setup (the nvim config lives
-# there, so in-container edits are live and pushable). Pi sessions, machine state
-# and login persist in named volumes; the baked config, pinned Pi packages and
-# Neovim plugins stay in the image.
+# there, so in-container edits are live and pushable). At every start the
+# entrypoint fast-forwards both the Pi config and that checkout to their origin
+# branches, pull-only, resetting to the remote when they cannot fast-forward --
+# so unpushed edits in /linux-quick-setup are ephemeral. Pi sessions, machine
+# state and login persist in named volumes; the baked config, pinned Pi packages
+# and Neovim plugins stay in the image.
 
 name: linux-quick-setup
 
@@ -65,6 +68,10 @@ services:
       PI_SYNC_BRANCH: ${PI_SYNC_BRANCH:-main}
       PI_SYNC_REHYDRATE: ${PI_SYNC_REHYDRATE:-1}
       PI_SYNC_FETCH_TIMEOUT: ${PI_SYNC_FETCH_TIMEOUT:-20}
+      # The /linux-quick-setup checkout follows its own branch at every start;
+      # LQS_SYNC_REHYDRATE=0 keeps it exactly as baked.
+      LQS_SYNC_BRANCH: ${LQS_SYNC_BRANCH:-main}
+      LQS_SYNC_REHYDRATE: ${LQS_SYNC_REHYDRATE:-1}
     volumes:
       - ${CODE_DIR:-.}:/workspace
       - pi-sessions:/home/dev/.pi/agent/sessions

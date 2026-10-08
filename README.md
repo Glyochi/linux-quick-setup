@@ -229,8 +229,9 @@ docker build --build-arg PI_SYNC_REF=<tag-or-sha> -t linux-quick-setup:latest .
 The default config repo is public, so no token is needed. For a private
 `PI_SYNC_REPO`, add `--secret id=github_token,env=GITHUB_TOKEN`.
 
-Run it. The entrypoint fast-forwards the baked config to `origin/main` (the
-public repo needs no token) and never pushes:
+Run it. The entrypoint fast-forwards the baked Pi config **and** the
+`/linux-quick-setup` checkout to their origin branches (public repos need no
+token) and never pushes:
 
 ```bash
 docker run --rm -it \
@@ -239,7 +240,8 @@ docker run --rm -it \
 ```
 
 Use `nvim`, `pi`, and `tmux` inside the container. Add `-e GITHUB_TOKEN` only for a
-private repo, or set `PI_SYNC_REHYDRATE=0` to skip the fetch.
+private repo, or set `PI_SYNC_REHYDRATE=0` (Pi config) or `LQS_SYNC_REHYDRATE=0`
+(`/linux-quick-setup`) to skip either fetch.
 
 The container has no git identity, and pi-config-sync's automatic sync commits
 need one. Set `GIT_USER_NAME`/`GIT_USER_EMAIL` (the entrypoint applies them at
@@ -254,6 +256,12 @@ edits there take effect immediately in Neovim and show up in `git status`.
 `vim` and `vi` are aliased to `nvim` in the login profile and `~/.bashrc`.
 `~/.tmux.conf` symlinks into `/linux-quick-setup/tmux/.tmux.conf` the same way;
 restart the tmux server (`tmux kill-server`) for config changes to take effect.
+
+Every container start fast-forwards this checkout to `origin/main`
+(`LQS_SYNC_BRANCH` picks another branch) and resets it to the remote when it
+cannot fast-forward, so **unpushed edits in `/linux-quick-setup` are ephemeral**:
+push them, or start the container with `LQS_SYNC_REHYDRATE=0` to keep the
+checkout as it is. The same pull-only refresh applies to the Pi config repo.
 
 To commit and push from inside the container, provide the token (for auth) and
 an identity:
@@ -285,7 +293,9 @@ identity or falls back to GitHub's noreply address
 
 `LQS_REF` (build arg) controls the ref the image clones and defaults to `main`.
 Build with `LQS_REF=$(git rev-parse HEAD)` (or your branch) so the baked checkout
-matches your tree instead of `main`.
+matches your tree instead of `main`. At runtime the entrypoint then follows
+`LQS_SYNC_BRANCH` (default `main`), so a baked ref that is not `main` is
+fast-forwarded onto `main` at the next start unless `LQS_SYNC_REHYDRATE=0`.
 
 ## Published image (CI)
 
@@ -343,7 +353,7 @@ closing the laptop) no longer stops it: tmux and any running `pi` session inside
 keep going, and re-running the script simply re-attaches. `docker-compose.yaml`
 stays the single source of truth, so `CODE_DIR`, `IMAGE`, `IMAGE_TAG`,
 `BASE_IMAGE`, `DEV_UID`/`DEV_GID`, `GITHUB_TOKEN`, `CONTAINER_NAME`, and the
-`PI_SYNC_*` variables behave exactly as with `docker compose up`;
+`PI_SYNC_*` and `LQS_SYNC_*` variables behave exactly as with `docker compose up`;
 `BUILD=1 bash run_container.sh` adds `--build`, and `SERVICE`/`COMPOSE_FILE`
 override the service and compose file.
 
@@ -382,8 +392,8 @@ docker compose run --rm dev nvim
 ```
 
 Override `CODE_DIR`, `BASE_IMAGE`, `IMAGE_TAG`, `TMUX_VERSION`, `PI_SYNC_REF`,
-`DEV_UID`/`DEV_GID`, or `PI_SYNC_REHYDRATE` through the environment or a `.env`
-file. The Pi login persists in the `pi-auth` volume, so `pi` stays signed in
+`DEV_UID`/`DEV_GID`, `PI_SYNC_REHYDRATE`, `LQS_SYNC_BRANCH`, or
+`LQS_SYNC_REHYDRATE` through the environment or a `.env` file. The Pi login persists in the `pi-auth` volume, so `pi` stays signed in
 across runs — run `/login` once. To reuse an existing host login instead, follow
 the commented volume in `docker-compose.yaml`.
 
@@ -433,8 +443,11 @@ Notes:
   rebuild the image to keep a package.
 - The config repo is public by default and needs no token; a private one can be
   built with a BuildKit secret, and any token is never written into an image layer.
-- Runtime rehydration is pull-only; if the config repo's history diverged, the
-  container resets to the remote, so container-local config changes are ephemeral.
+- Runtime rehydration is pull-only and runs for both the Pi config repo and the
+  baked `/linux-quick-setup` checkout; if either history diverged (or local
+  changes are in the way), the container resets that checkout to the remote, so
+  container-local changes — including unpushed `/linux-quick-setup` edits — are
+  ephemeral.
 - `amd64` and glibc bases only (no Alpine/musl, no arm64). `debian:bookworm-slim`
   is the only built and verified base.
 - `fd` is installed from the base's `fd-find` package (symlinked to `fd`), so Pi

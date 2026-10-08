@@ -11,7 +11,7 @@
 - `remove_pi.sh`: teardown for Pi config and installs (the synced config remains on the remote).
 - `remove_things.sh`: teardown for Neovim config/data.
 - `Dockerfile` / `.dockerignore`: reusable image that ships the pinned Neovim + Pi environment plus a `/linux-quick-setup` git checkout for in-container editing.
-- `docker/entrypoint.sh`: container entrypoint; pull-only config refresh (fast-forward, else reset to the remote) then exec.
+- `docker/entrypoint.sh`: container entrypoint; pull-only refresh of the baked Pi config and the `/linux-quick-setup` checkout (fast-forward, else reset to the remote) then exec. `PI_SYNC_REHYDRATE=0` and `LQS_SYNC_REHYDRATE=0` disable one refresh each, `PI_SYNC_BRANCH`/`LQS_SYNC_BRANCH` pick the branch (both default `main`), and `PI_SYNC_FETCH_TIMEOUT` bounds both fetches.
 - `docker/setup-git-auth.sh`: in-container helper that stores GitHub HTTPS credentials (`~/.git-credentials`) and the commit identity so pushes from `/linux-quick-setup` work.
 - `docker-compose.yaml`: brings up the image with the code mounted at `/workspace` and Pi state in named volumes.
 - `run_container.sh`: launcher for the Compose service; starts it detached (`docker compose up -d`, `BUILD=1` adds `--build`) and opens a shell with `docker compose exec dev`, so the container survives a lost connection and `Ctrl+P` reaches the container (exec bypasses docker's detach-key proxy).
