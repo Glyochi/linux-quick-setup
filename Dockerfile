@@ -24,6 +24,7 @@ ARG NODE_VERSION=22.23.3
 ARG PI_VERSION=1.0.0
 ARG BASEDPYRIGHT_VERSION=1.40.2
 ARG BLACK_VERSION=26.10.0
+ARG PYVIS_VERSION=0.3.2
 ARG PI_SYNC_REPO=https://github.com/Glyochi/pi-config-sync.git
 ARG PI_SYNC_REF=main
 ARG PI_SYNC_BRANCH=main
@@ -118,7 +119,9 @@ RUN HOME=/home/dev nvim --headless "+Lazy! restore" +qa
 RUN npm install -g --ignore-scripts "@earendil-works/pi-coding-agent@${PI_VERSION}" \
  && npm install -g "basedpyright@${BASEDPYRIGHT_VERSION}" \
  && npm cache clean --force
-RUN python3 -m pip install --no-cache-dir --break-system-packages "black==${BLACK_VERSION}"
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+		"black==${BLACK_VERSION}" \
+		"pyvis==${PYVIS_VERSION}"
 
 ### Bake the config repo at a pinned ref.
 # The default repo is public, so no secret is needed. Pass
