@@ -196,9 +196,11 @@ The config needs **tmux 3.5 or newer** and sets:
   modified keys survive nesting inside another tmux.
 - `set-clipboard on`, which copies through OSC 52 — no X11 or clipboard daemon is
   needed in the container.
+- `mouse on`, which enables mouse selection, scrolling, and pane/window selection.
 
 Notes:
 
+- Interactive shells in the image alias `tmux` to run with `TERM=xterm-256color`.
 - The image sets `LANG=C.UTF-8` and Compose pins the same value, because tmux only treats a client
   as UTF-8 when `TMUX` is set or the locale contains `UTF-8`. Without a UTF-8 locale tmux replaces
   non-ASCII glyphs that have no ACS mapping — rounded box corners (`╭ ╮ ╰ ╯`) and Nerd Font icons in
@@ -246,9 +248,10 @@ docker run --rm -it \
   linux-quick-setup:latest
 ```
 
-Use `nvim`, `pi`, and `tmux` inside the container. Add `-e GITHUB_TOKEN` only for a
-private repo, or set `PI_SYNC_REHYDRATE=0` (Pi config) or `LQS_SYNC_REHYDRATE=0`
-(`/linux-quick-setup`) to skip either fetch.
+Use `nvim`, `pi`, `tmux`, and GitHub CLI (`gh`) inside the container. System pip is
+configured with `break-system-packages = true` in `/etc/pip.conf`. Add
+`-e GITHUB_TOKEN` only for a private repo, or set `PI_SYNC_REHYDRATE=0` (Pi config)
+or `LQS_SYNC_REHYDRATE=0` (`/linux-quick-setup`) to skip either fetch.
 
 The container has no git identity, and pi-config-sync's automatic sync commits
 need one. Set `GIT_USER_NAME`/`GIT_USER_EMAIL` (the entrypoint applies them at
@@ -260,7 +263,8 @@ with `Author identity unknown`.
 The image ships a real git checkout of this repo at `/linux-quick-setup` with an
 `origin` remote. `~/.config/nvim` symlinks into `/linux-quick-setup/neovim`, so
 edits there take effect immediately in Neovim and show up in `git status`.
-`vim` and `vi` are aliased to `nvim` in the login profile and `~/.bashrc`.
+`vim` and `vi` are aliased to `nvim`, and `tmux` is aliased to run with
+`TERM=xterm-256color`, in the login profile and `~/.bashrc`.
 `~/.tmux.conf` symlinks into `/linux-quick-setup/tmux/.tmux.conf` the same way;
 restart the tmux server (`tmux kill-server`) for config changes to take effect.
 

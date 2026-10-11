@@ -50,7 +50,8 @@ RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
 		bash ca-certificates curl git wget tar gzip xz-utils unzip sudo \
-		tree ripgrep fd-find build-essential python3 python3-pip; \
+		tree ripgrep fd-find build-essential python3 python3-pip gh; \
+	printf '[global]\nbreak-system-packages = true\n' > /etc/pip.conf; \
 	if fdfind_path="$(command -v fdfind)"; then ln -sf "$fdfind_path" /usr/local/bin/fd; fi; \
 	rm -rf /var/lib/apt/lists/*; \
 	curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz; \
@@ -168,9 +169,9 @@ COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY docker/setup-git-auth.sh /usr/local/bin/setup-git-auth
 # /etc/profile resets PATH for login shells, so re-add the toolchain there too.
 RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh /usr/local/bin/setup-git-auth \
- && printf 'export PATH="/usr/local/nvim-linux-x86_64/bin:/opt/node/bin:$PATH"\nalias vim=nvim\nalias vi=nvim\n' > /etc/profile.d/linux-quick-setup.sh \
+ && printf 'export PATH="/usr/local/nvim-linux-x86_64/bin:/opt/node/bin:$PATH"\nalias vim=nvim\nalias vi=nvim\nalias tmux="TERM=xterm-256color tmux"\n' > /etc/profile.d/linux-quick-setup.sh \
  && chmod 0644 /etc/profile.d/linux-quick-setup.sh \
- && printf '\n# linux-quick-setup: use nvim for vim/vi\nalias vim=nvim\nalias vi=nvim\n' >> /home/dev/.bashrc \
+ && printf '\n# linux-quick-setup: use nvim for vim/vi and set tmux TERM\nalias vim=nvim\nalias vi=nvim\nalias tmux="TERM=xterm-256color tmux"\n' >> /home/dev/.bashrc \
  && mkdir -p /home/dev/.pi/agent/sessions /home/dev/.pi/agent/state /home/dev/.pi/agent/auth \
  && chown -R dev:dev /home/dev /linux-quick-setup
 
