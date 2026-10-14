@@ -112,15 +112,24 @@ local function wrapped_rows(lines, width)
   return rows
 end
 
---- Capture the visual selection line range, if any.
+--- Capture the active visual selection line range, if any. The `'<` / `'>`
+--- marks can describe an older selection when this runs from a visual mapping.
 --- @return table|nil
 local function capture_selection()
-  local start_pos = vim.fn.getpos("'<")
-  local end_pos = vim.fn.getpos("'>")
-  if start_pos[2] == 0 and end_pos[2] == 0 then
+  local mode = vim.fn.mode()
+  if mode ~= "v" and mode ~= "V" and mode ~= "\22" then
     return nil
   end
-  return { start_line = start_pos[2], end_line = end_pos[2] }
+
+  local anchor = vim.fn.getpos("v")
+  local cursor = vim.fn.getpos(".")
+  if anchor[2] == 0 or cursor[2] == 0 then
+    return nil
+  end
+  return {
+    start_line = math.min(anchor[2], cursor[2]),
+    end_line = math.max(anchor[2], cursor[2]),
+  }
 end
 
 --- Open the prompt float.
