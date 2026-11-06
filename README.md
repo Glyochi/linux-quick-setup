@@ -347,35 +347,54 @@ differs, build locally or override the user at run time.
 a shell inside it:
 
 ```bash
-bash run_container.sh                    # detached start + login shell
-bash run_container.sh nvim               # one-off command
-bash run_container.sh tmux new -As main  # persistent session inside
+bash run_container.sh /projects/app                    # name defaults to app
+bash run_container.sh /projects/app myapp              # explicit name
+bash run_container.sh /projects/app myapp nvim         # one-off command
+bash run_container.sh /projects/app '' tmux new -As main # default name + command
 ```
 
 It is the equivalent of:
 
 ```bash
-docker compose up -d
-docker compose exec dev bash -l
+CONTAINER_NAME=mytool CODE_DIR=/path/to/mytool docker compose -p mytool up -d
+docker compose -p mytool exec dev bash -l
 ```
 
 Because the container starts detached, losing the terminal connection (or
 closing the laptop) no longer stops it: tmux and any running `pi` session inside
 keep going, and re-running the script simply re-attaches. `docker-compose.yaml`
-stays the single source of truth, so `CODE_DIR`, `IMAGE`, `IMAGE_TAG`,
-`BASE_IMAGE`, `DEV_UID`/`DEV_GID`, `GITHUB_TOKEN`, `CONTAINER_NAME`, and the
-`PI_SYNC_*` and `LQS_SYNC_*` variables behave exactly as with `docker compose up`;
+stays the single source of truth for `IMAGE`, `IMAGE_TAG`, `BASE_IMAGE`,
+`DEV_UID`/`DEV_GID`, `GITHUB_TOKEN`, and the `PI_SYNC_*` and `LQS_SYNC_*`
+variables, which are passed through to Compose;
 `BUILD=1 bash run_container.sh` adds `--build`, and `SERVICE`/`COMPOSE_FILE`
 override the service and compose file.
 
-`CONTAINER_NAME=mytool bash run_container.sh` names the container `mytool`
-instead of the derived `linux-quick-setup-dev-1`. The Compose project stays
-`linux-quick-setup`, so the `pi-sessions`/`pi-state`/`pi-auth` volumes keep their
-names and the Pi login and session history are untouched. Two caveats: the name
-is fixed, so the service cannot be scaled and a second project started from this
-file collides on it (give each one its own `CONTAINER_NAME`); and changing the
-name recreates the container once, which ends a live tmux/`pi` session inside the
-old one — the named volumes survive that.
+Usage: `bash run_container.sh [path] [container-name] [command...]`.
+The first argument is the code path; the second is the optional container name.
+The name defaults to the path's last folder (lowercased, with unsupported
+characters replaced by `-`). With no path, the Compose file's directory is used.
+Relative paths are resolved from the launcher's current working directory.
+`CODE_DIR` and `CONTAINER_NAME` environment variables are ignored by the launcher
+(they remain supported for direct Compose calls). Pass `''` as the second
+argument to use the default name when supplying a command.
+
+Each container name gets its own Compose project, so different names can run
+concurrently without replacing each other. Project names follow the container
+name; names containing uppercase letters or dots are normalized with a checksum
+suffix to keep them distinct. Pi sessions, state, and login volumes are separate
+per project; a new project may require a new Pi login. Existing volumes are not
+removed. Reusing a name reattaches to that container (changing its code path
+recreates that same container). Folders with the same basename need explicit,
+distinct names:
+
+```bash
+bash run_container.sh /projects/frontend
+bash run_container.sh /projects/backend
+bash run_container.sh /projects/frontend frontend-test
+```
+
+Kitty's `TERM=xterm-kitty` is mapped to `xterm-256color` for exec because the
+image lacks Kitty terminfo; other terminal settings, including SSH, are unchanged.
 
 That shell comes from `docker compose exec`, which never goes through docker's
 detach-key proxy, so a lone **Ctrl+P** arrives intact (Pi's model cycling,

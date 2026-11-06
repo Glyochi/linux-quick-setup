@@ -14,7 +14,7 @@
 - `docker/entrypoint.sh`: container entrypoint; pull-only refresh of the baked Pi config and the `/linux-quick-setup` checkout (fast-forward, else reset to the remote) then exec. `PI_SYNC_REHYDRATE=0` and `LQS_SYNC_REHYDRATE=0` disable one refresh each, `PI_SYNC_BRANCH`/`LQS_SYNC_BRANCH` pick the branch (both default `main`), and `PI_SYNC_FETCH_TIMEOUT` bounds both fetches.
 - `docker/setup-git-auth.sh`: in-container helper that stores GitHub HTTPS credentials (`~/.git-credentials`) and the commit identity so pushes from `/linux-quick-setup` work.
 - `docker-compose.yaml`: brings up the image with the code mounted at `/workspace` and Pi state in named volumes.
-- `run_container.sh`: launcher for the Compose service; starts it detached (`docker compose up -d`, `BUILD=1` adds `--build`) and opens a shell with `docker compose exec dev`, so the container survives a lost connection and `Ctrl+P` reaches the container (exec bypasses docker's detach-key proxy).
+- `run_container.sh`: launcher for the Compose service; accepts `[path] [container-name] [command...]` (not `CODE_DIR`/`CONTAINER_NAME` env inputs), defaults the name to the normalized path basename (default path: Compose file directory), uses a separate Compose project/Pi volumes per name, starts it detached (`docker compose up -d`, `BUILD=1` adds `--build`) and opens a shell with `docker compose exec dev`. Different names coexist; the same name reattaches. Kitty's TERM is mapped to xterm-256color for exec; other terminals are unchanged. The container survives a lost connection and `Ctrl+P` reaches it (exec bypasses docker's detach-key proxy).
 - `.github/workflows/build-image.yml`: manual workflow that builds and publishes the image to GHCR.
 - `docs/plans/**`: implementation plans and progress logs.
 - `utils.sh`: shared Bash helpers (array/string/file helpers, logging, parsing).
@@ -62,7 +62,8 @@
     - `docker run --rm -it -v "$PWD:/workspace" linux-quick-setup:latest`
   - Launcher (starts the Compose service detached, then `docker compose exec dev bash -l`, so the container survives a lost connection and `Ctrl+P` arrives intact):
     - `bash run_container.sh`
-    - `bash run_container.sh nvim`
+    - `bash run_container.sh /projects/app '' nvim`
+    - `bash run_container.sh /projects/app myapp`
     - `BUILD=1 bash run_container.sh`
   - In-container repo for editing/pushing (nvim config symlinks point here):
     - `/linux-quick-setup` (git checkout; run `setup-git-auth` or set `GIT_USER_NAME`/`GIT_USER_EMAIL` and `GITHUB_TOKEN` to commit and push)

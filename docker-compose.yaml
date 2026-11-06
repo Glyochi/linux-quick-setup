@@ -9,8 +9,8 @@
 # name, so pulling and building are interchangeable.
 #
 # CONTAINER_NAME names the container (default: linux-quick-setup). The Compose
-# project stays linux-quick-setup either way, so the named volumes below and the
-# Pi login/sessions in them are unaffected by the name.
+# project defaults to linux-quick-setup for direct Compose calls. run_container.sh
+# instead sets a project per container name, isolating containers and Pi volumes.
 #
 # GITHUB_TOKEN is only needed when PI_SYNC_REPO points at a private repo.
 #
@@ -28,10 +28,9 @@ name: linux-quick-setup
 services:
   dev:
     # Optional: name the container yourself, e.g. CONTAINER_NAME=mytool. The name
-    # must be unique on the host (so no scaling), and changing it recreates the
-    # container once -- a live tmux/pi session inside the old one is lost, while
-    # the named volumes below survive. `docker compose run` one-offs are not
-    # affected: they ignore container_name.
+    # must be unique on the host (so no scaling). With direct Compose calls,
+    # changing it within the same project recreates the container; the launcher
+    # uses separate projects instead. `docker compose run` one-offs ignore it.
     container_name: ${CONTAINER_NAME:-linux-quick-setup}
     build:
       context: .
@@ -85,6 +84,13 @@ services:
       #   mkdir -p ~/.pi/agent && touch ~/.pi/agent/auth.json && chmod 600 ~/.pi/agent/auth.json
       # - ${PI_AUTH_FILE:-${HOME}/.pi/agent/auth.json}:/home/dev/.pi/agent/auth.json
     command: ["bash", "-l"]
+
+    # Pass through devices here 
+    devices:
+      - /dev/video0:/dev/video0
+      - /dev/video1:/dev/video1
+      - /dev/video2:/dev/video2
+      - /dev/video3:/dev/video3
 
 volumes:
   pi-sessions:
