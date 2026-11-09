@@ -51,6 +51,7 @@ RUN set -eux; \
 	apt-get install -y --no-install-recommends \
 		bash ca-certificates curl git wget tar gzip xz-utils unzip sudo \
 		tree ripgrep fd-find build-essential python3 python3-pip gh \
+		chromium librsvg2-bin fonts-dejavu-core \
 		libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxkbcommon-x11-0 \
 		libxcb-xinerama0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-render-util0; \
 	printf '[global]\nbreak-system-packages = true\n' > /etc/pip.conf; \
@@ -65,6 +66,11 @@ RUN set -eux; \
 	npm --version
 
 ENV PATH="/opt/node/bin:${PATH}"
+
+# Mermaid uses the system Chromium, not a Puppeteer download. Docker's default
+# restrictions prevent Chromium's user-namespace sandbox; the host default stays on.
+ENV PI_LEARN_CHROME=/usr/bin/chromium \
+	PI_LEARN_CHROME_NO_SANDBOX=1
 
 ### Pinned tmux. Debian bookworm ships 3.3a, which predates the extkeys terminal
 ### feature and extended-keys-format (tmux 3.5), so install the upstream static
@@ -165,6 +171,13 @@ console.log("seeded Pi packages: " + JSON.stringify(dependencies));
 NODE
 RUN HOME=/home/dev npm install --prefix /home/dev/.pi/agent/npm --legacy-peer-deps \
  && HOME=/home/dev npm cache clean --force
+
+### Learning integration gates (older config refs skip the optional Node suite).
+RUN bash tests/install_pi_learn.sh \
+ && if [ -f /home/dev/.pi/agent/extensions/learn/tests/quiz.test.mjs ]; then \
+		HOME=/home/dev PI_LEARN_RENDER_SMOKE=1 \
+			npm test --prefix /home/dev/.pi/agent/extensions/learn; \
+	fi
 
 ### Runtime
 COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh

@@ -144,6 +144,10 @@ else
 	fi
 fi
 
+# Local extension dependencies are not installed by Pi's npm package resolver.
+# Older config refs without the opt-in toolkit continue to work unchanged.
+bash "$(dirname "${BASH_SOURCE[0]}")/install_pi_learn.sh" --if-present
+
 print_info "Pi setup complete.\n"
 print_info "Config repo '${PI_SYNC_REPO}' linked at '${PI_AGENT_DIR}'.\n"
 print_info "Run 'pi': it installs the packages declared in settings.json on first run.\n"

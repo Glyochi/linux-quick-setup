@@ -7,7 +7,8 @@
 
 ## Repository Map
 - `install_things.sh`: main installer flow (Neovim download/install + config linking).
-- `install_pi.sh`: installs Pi and clones/updates the pi-config-sync repo at `~/.pi/agent` (no credentials for a public repo, token for a private one); Pi installs the packages declared in its settings.json on first run.
+- `install_pi.sh`: installs Pi and clones/updates the pi-config-sync repo at `~/.pi/agent` (no credentials for a public repo, token for a private one); Pi installs the packages declared in its settings.json on first run. It calls `install_pi_learn.sh --if-present` for local learning-extension dependencies.
+- `install_pi_learn.sh`: installs the synced learning toolkit's locked npm dependencies without lifecycle scripts or a Puppeteer browser download; optional `--system-deps` installs Chromium, librsvg2-bin, and fonts on Debian/Ubuntu. `PI_CODING_AGENT_DIR` selects the config root. Teaching is explicit-only (`/skill:learn-teach`); config code/tests/agents are in the separate Pi config repo, not this repo.
 - `remove_pi.sh`: teardown for Pi config and installs (the synced config remains on the remote).
 - `remove_things.sh`: teardown for Neovim config/data.
 - `Dockerfile` / `.dockerignore`: reusable image that ships the pinned Neovim + Pi environment plus a `/linux-quick-setup` git checkout for in-container editing.
@@ -54,6 +55,8 @@
 - Use script execution as the build/run workflow:
   - Full setup: `bash install_things.sh`
   - Pi setup only: `bash install_pi.sh`
+  - Learning renderers (existing synced config): `bash install_pi_learn.sh`
+  - Learning renderers + Debian/Ubuntu system packages: `bash install_pi_learn.sh --system-deps`
   - Teardown: `bash remove_things.sh`
   - Pi teardown: `bash remove_pi.sh`
   - Docker image build (the default config repo is public; no token needed):
@@ -80,11 +83,11 @@
 
 ### Lint / Static Checks
 - Bash syntax check (all scripts):
-  - `bash -n back_bone.sh utils.sh install_things.sh install_pi.sh remove_pi.sh remove_things.sh run_container.sh docker/entrypoint.sh docker/setup-git-auth.sh`
+  - `bash -n back_bone.sh utils.sh install_things.sh install_pi.sh install_pi_learn.sh remove_pi.sh remove_things.sh run_container.sh docker/entrypoint.sh docker/setup-git-auth.sh tests/install_pi_learn.sh`
 - Bash syntax check (single script):
   - `bash -n utils.sh`
 - ShellCheck (all scripts, when installed):
-  - `shellcheck back_bone.sh utils.sh install_things.sh install_pi.sh remove_pi.sh remove_things.sh run_container.sh docker/entrypoint.sh docker/setup-git-auth.sh`
+  - `shellcheck back_bone.sh utils.sh install_things.sh install_pi.sh install_pi_learn.sh remove_pi.sh remove_things.sh run_container.sh docker/entrypoint.sh docker/setup-git-auth.sh tests/install_pi_learn.sh`
 - ShellCheck (single script):
   - `shellcheck install_things.sh`
 - Lua parse smoke check (single file):
@@ -98,8 +101,15 @@
   - `docker buildx build --check -f Dockerfile .`
 
 ### Test Status
-- There is no formal automated unit/integration test suite currently.
-- Minimum verification bar is syntax/lint checks plus targeted runtime/script checks.
+- There is no unified automated test suite in this setup repo. Minimum verification is syntax/lint plus targeted runtime/script checks.
+- Focused installer smoke: `bash tests/install_pi_learn.sh` (mocks npm/apt/sudo; no network or host package changes). This is the complete single-file Bash test; the Docker build runs it.
+- The toolkit uses the shared `learn` prefix: `/learn-*` commands, `/skill:learn-*` skills, `learn_*` extension tools, and `learn.*` agents. Naming regressions (including legacy log compatibility) are covered by the config-repo suite.
+- The separate synced Pi config has native `node:test` learning tests under `~/.pi/agent/extensions/learn/tests/` (Node.js 22.19+ and npm-installed Pi required; no model/API calls):
+  - Full unit/runtime suite: `npm test --prefix ~/.pi/agent/extensions/learn`
+  - Include real renderers: `PI_LEARN_RENDER_SMOKE=1 npm test --prefix ~/.pi/agent/extensions/learn`
+  - One file: `cd ~/.pi/agent/extensions/learn && node --experimental-strip-types --test tests/quiz.test.mjs`
+  - One named test: `cd ~/.pi/agent/extensions/learn && node --experimental-strip-types --test --test-name-pattern='cancel never' tests/quiz.test.mjs`
+  - The Dockerfile runs the full render-enabled suite when the synced tests are present; this is also its manual image-publishing CI entrypoint. Older config refs skip the optional toolkit.
 
 ### Running a Single Test (important for agents)
 - Since no test runner exists, treat a "single test" as one focused validation:
@@ -125,6 +135,7 @@
   1. `docker buildx build --check -f Dockerfile .`
   2. `bash -n docker/entrypoint.sh`
   3. `docker buildx build -t linux-quick-setup:test .` then `docker run --rm linux-quick-setup:test nvim --version` and `docker run --rm linux-quick-setup:test tmux -V`.
+  4. For a config ref containing the learning toolkit, its build gate runs render-enabled tests. Runtime repeat: `docker run --rm -e PI_LEARN_RENDER_SMOKE=1 linux-quick-setup:test npm test --prefix /home/dev/.pi/agent/extensions/learn`.
 
 ## Bash Style Guidelines
 
@@ -204,6 +215,6 @@
   - expected CI command/entrypoint.
 
 ## Known Gaps
-- CI exists only to publish the Docker image (`.github/workflows/build-image.yml`, manual trigger); the Bash/Lua scripts have no CI.
+- CI exists only to publish the Docker image (`.github/workflows/build-image.yml`, manual trigger). Its build gate covers the learning installer and, when present in the synced config, learning runtime/render tests; other Bash/Lua scripts have no CI.
 - No standardized formatter config for Bash/Lua is present.
-- No dedicated automated test suite exists yet.
+- No unified repository-wide test suite exists; the learning integration has the focused Bash and separate config-repo Node checks documented above.

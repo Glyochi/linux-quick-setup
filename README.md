@@ -55,6 +55,68 @@ force it.
 
 Skills live in `~/.pi/agent/skills/` and load in every project.
 
+## Opt-in learning / Obsidian
+
+The synced Pi config integrates [amosblomqvist/learn](https://github.com/amosblomqvist/learn):
+foundation-first teaching, graded quizzes, web verification, Mermaid/SVG makers,
+and optional Obsidian session notes. It retains the existing `pi-subagents` and
+collapsible rpiv `ask_user_question`; the teaching workflow **does not activate
+for normal coding explanations**. Toolkit commands/skills use `learn-`, extension
+tools use `learn_` (for example `learn_quiz`), and agents use `learn.`.
+The extension bundle lives in `~/.pi/agent/extensions/learn/`, and the visual skill
+is `/skill:learn-visualize`. Agents inherit your current model rather than
+requiring the author's providers. Use a vision-capable model for verified visuals.
+
+After syncing the new config, run `/reload`, then `/learn-doctor` in Pi:
+
+```text
+/learn-log /workspace/Notes/Lesson.md
+/skill:learn-teach Explain TCP reliability, starting from what I already know
+```
+
+The note must already exist. `/learn-log` appends an idempotent backfill without
+replacing existing prose; `/learn-unlog` stops it. Open that same note in Obsidian
+on the host: questions appear without their answers, then answers and feedback
+are added after submission. Makers save unique PNGs into `viz/` beside the note
+and embed them with Obsidian wikilinks. Without logging, output defaults to
+`<cwd>/viz`. Notes and images stay outside the synced config repository.
+
+The vault must be mounted into the container, not merely named with a host-only
+path. For example, `bash run_container.sh "$HOME/ObsidianVault" learning` mounts
+that vault as `/workspace`; Obsidian keeps running on the host. Pi and Obsidian
+then read the same files. In quizzes, `Ctrl+]` hides/reopens the overlay,
+`PgUp`/`PgDn` scroll, and `Tab` focuses an optional answer note.
+
+The Docker image includes Chromium, `rsvg-convert`, and fonts.
+`install_pi.sh` installs the toolkit's locked npm dependencies when the synced
+config contains it. For an existing container, or host-only setup:
+
+```bash
+bash install_pi_learn.sh                 # locked npm dependencies only
+bash install_pi_learn.sh --system-deps   # Debian/Ubuntu: system packages too
+```
+
+Use `PI_CODING_AGENT_DIR` for a non-default Pi config directory. On other Linux
+distros, install Chromium, librsvg, and fonts through your system package manager,
+then run the npm-only helper. `PI_LEARN_CHROME` can select a browser executable.
+The image disables Chromium's own sandbox inside Docker; hosts keep it enabled.
+See `~/.pi/agent/extensions/learn/README.md` for safety notes and overrides.
+Pi does not install local extension dependencies on `/reload`: rerun the helper
+when the synced dependency lock changes, or rebuild the image.
+
+The integration is split across **two repos**: this repo owns the installer and
+Docker environment; the Pi config repo owns the skills, agents, extension, and
+npm lock. Sync/push the config and setup changes before recreating a container,
+and build with a `PI_SYNC_REF` that includes the toolkit. Older config refs skip
+it. The Docker build runs the toolkit's native `node:test` suite and real render
+smokes when those tests are present:
+
+```bash
+bash tests/install_pi_learn.sh  # isolated installer checks; no network or root access
+npm test --prefix ~/.pi/agent/extensions/learn
+PI_LEARN_RENDER_SMOKE=1 npm test --prefix ~/.pi/agent/extensions/learn
+```
+
 ## Neovim + pi
 
 There is **one** pi process — running in its own tmux session — and two ways to reach it from
