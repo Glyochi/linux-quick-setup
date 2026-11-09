@@ -427,6 +427,83 @@ Override `CODE_DIR`, `BASE_IMAGE`, `IMAGE_TAG`, `TMUX_VERSION`, `PI_SYNC_REF`,
 across runs — run `/login` once. To reuse an existing host login instead, follow
 the commented volume in `docker-compose.yaml`.
 
+## GUI windows / OpenCV `imshow` (Linux and Wayland)
+
+Compose (including `run_container.sh`) forwards the host's `DISPLAY` and mounts
+its X11 socket. On Wayland this uses **XWayland**; native Wayland forwarding is
+not needed. The image includes the common OpenCV/Qt X11 runtime libraries, and
+Compose forces Qt's `xcb` (X11) backend. No privileged mode or GPU passthrough
+is required for basic `imshow` windows.
+
+### Host setup
+
+Install the host tools once:
+
+```bash
+# Arch (including Wayland desktops):
+sudo pacman -S --needed xorg-xwayland xorg-xhost
+
+# Debian / Ubuntu:
+sudo apt-get update && sudo apt-get install -y xwayland x11-xserver-utils
+```
+
+From a terminal **inside your graphical desktop session**, before starting the
+container (repeat after logging out/rebooting):
+
+```bash
+echo "$DISPLAY"   # should show something like :0 or :1
+xhost +local:
+bash run_container.sh
+```
+
+If `DISPLAY` is empty on Wayland, enable XWayland in your compositor/session
+and reopen the terminal; don't guess a display number. Plain X11 sessions
+already have an X server and don't need XWayland.
+
+**This deliberately allows all local users/containers to access your X display,
+including observing input/windows.** To revoke that access, run `xhost -local:`
+on the host. Neither command needs `sudo`. This setup targets a local Linux
+Docker engine, not Docker Desktop or an SSH-forwarded display.
+
+For an existing image, build once to include the GUI libraries:
+
+```bash
+BUILD=1 bash run_container.sh
+```
+
+The launcher applies the Compose changes automatically, recreating an existing
+container if necessary (files outside volumes/bind mounts will be lost).
+Use your usual path/name arguments to target the same container.
+
+### Inside the container
+
+Install the GUI-enabled OpenCV package in your project's Python environment;
+**do not use `opencv-python-headless`** or mix multiple OpenCV packages in the
+same environment. For a fresh environment:
+
+```bash
+python3 -m pip install opencv-python
+python3 - <<'PY'
+import cv2
+import numpy as np
+
+cv2.imshow("Container display test", np.zeros((300, 500, 3), dtype=np.uint8))
+cv2.waitKey(0)  # pumps GUI events; press a key in the window to close it
+cv2.destroyAllWindows()
+PY
+```
+
+For direct `docker run` instead of Compose, pass the display settings yourself
+(after the same host `xhost` command):
+
+```bash
+docker run --rm -it \
+  -e DISPLAY="$DISPLAY" -e QT_QPA_PLATFORM=xcb \
+  -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+  -v "$PWD:/workspace" \
+  ghcr.io/glyochi/linux-quick-setup:latest
+```
+
 ## Stacking on another base
 
 The image builds inside whatever glibc base you pass (`debian:bookworm-slim` by

@@ -50,7 +50,9 @@ RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
 		bash ca-certificates curl git wget tar gzip xz-utils unzip sudo \
-		tree ripgrep fd-find build-essential python3 python3-pip gh; \
+		tree ripgrep fd-find build-essential python3 python3-pip gh \
+		libgl1 libglib2.0-0 libsm6 libxext6 libxrender1 libxkbcommon-x11-0 \
+		libxcb-xinerama0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-render-util0; \
 	printf '[global]\nbreak-system-packages = true\n' > /etc/pip.conf; \
 	if fdfind_path="$(command -v fdfind)"; then ln -sf "$fdfind_path" /usr/local/bin/fd; fi; \
 	rm -rf /var/lib/apt/lists/*; \

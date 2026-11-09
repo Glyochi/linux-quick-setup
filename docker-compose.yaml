@@ -57,6 +57,9 @@ services:
     tty: true
     environment:
       TERM: ${TERM:-xterm-256color}
+      # X11 on Linux, or XWayland on Wayland desktops. Host setup: README.md.
+      DISPLAY: ${DISPLAY:-}
+      QT_QPA_PLATFORM: xcb
       # Keep this a literal, never ${LANG:-...}: tmux only treats a client as UTF-8 when the locale
       # contains "UTF-8", and a host LANG of C/POSIX would reintroduce the glyph mangling.
       LANG: C.UTF-8
@@ -72,8 +75,11 @@ services:
       # LQS_SYNC_REHYDRATE=0 keeps it exactly as baked.
       LQS_SYNC_BRANCH: ${LQS_SYNC_BRANCH:-main}
       LQS_SYNC_REHYDRATE: ${LQS_SYNC_REHYDRATE:-1}
+    group_add:
+        - "986"
     volumes:
       - ${CODE_DIR:-.}:/workspace
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
       - pi-sessions:/home/dev/.pi/agent/sessions
       - pi-state:/home/dev/.pi/agent/state
       # The Pi login persists in this volume; no host file is required.
